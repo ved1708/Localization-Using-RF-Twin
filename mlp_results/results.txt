@@ -1,0 +1,7 @@
+=== MLP LOCALISATION RESULTS ===
+3-D mean error   : 1.4835 m
+3-D median error : 1.3300 m
+3-D P90 error    : 2.8388 m
+X  RMSE / MAE    : 1.2906 / 0.9443 m
+Y  RMSE / MAE    : 1.1949 / 0.9394 m
+Z  RMSE / MAE    : 0.1209 / 0.0955 m

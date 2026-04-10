@@ -1,0 +1,1272 @@
+<scene version="2.1.0">
+
+<!-- Defaults, these can be set via the command line: -Darg=value -->
+
+
+<!-- Camera and Rendering Parameters -->
+
+	<integrator type="path" id="elm__0" name="elm__0">
+		<integer name="max_depth" value="12"/>
+	</integrator>
+
+<!-- Materials -->
+
+	<bsdf type="diffuse" id="mat-custom_leather.009" name="mat-custom_leather.009">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_plasterboard.001" name="mat-itu_plasterboard.001">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_leather.008" name="mat-custom_leather.008">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.007" name="mat-custom_plastic.007">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_metal" name="mat-itu_metal">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_plasterboard" name="mat-itu_plasterboard">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.014" name="mat-custom_plastic.014">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.015" name="mat-custom_plastic.015">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_wood.013" name="mat-itu_wood.013">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_plasterboard.016" name="mat-itu_plasterboard.016">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_wood.001" name="mat-itu_wood.001">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_cloth.005" name="mat-custom_cloth.005">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="twosided" id="mat-itu_glass.002" name="mat-itu_glass.002">
+		<bsdf type="principled" name="bsdf">
+			<rgb value="0.096049 0.045884 0.040434" name="base_color"/>
+			<float name="spec_tint" value="0.000000"/>
+			<float name="spec_trans" value="0.000000"/>
+			<float name="metallic" value="0.000000"/>
+			<float name="anisotropic" value="0.000000"/>
+			<texture type="bitmap" name="roughness">
+				<string name="filename" value="textures/rock_06_rough_4k.png.jpg"/>
+				<boolean name="raw" value="true"/>
+			</texture>
+			<float name="sheen" value="0.000000"/>
+			<float name="sheen_tint" value="0.500000"/>
+			<float name="clearcoat" value="0.000000"/>
+			<float name="clearcoat_gloss" value="0.000900"/>
+			<float name="specular" value="0.500000"/>
+		</bsdf>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_cloth.019" name="mat-custom_cloth.019">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.020" name="mat-custom_plastic.020">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_metal.001" name="mat-itu_metal.001">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic" name="mat-custom_plastic">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.021" name="mat-custom_plastic.021">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_concrete.017" name="mat-itu_concrete.017">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_ceiling_board.027" name="mat-itu_ceiling_board.027">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_glass" name="mat-itu_glass">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_metal.002" name="mat-itu_metal.002">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_glass.011" name="mat-itu_glass.011">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.026" name="mat-custom_plastic.026">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.002" name="mat-custom_plastic.002">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_glass.004" name="mat-itu_glass.004">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-custom_plastic.018" name="mat-custom_plastic.018">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+	<bsdf type="diffuse" id="mat-itu_wood.006" name="mat-itu_wood.006">
+		<rgb value="1.000000 0.000000 0.300000" name="reflectance"/>
+	</bsdf>
+
+<!-- Emitters -->
+
+	<emitter type="envmap" id="World" name="World">
+		<string name="filename" value="textures/2.jpg"/>
+		<float name="scale" value="1.000000"/>
+		<transform name="to_world">
+			<matrix value="0.000000 0.000000 1.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 0.000000 1.000000"/>
+		</transform>
+	</emitter>
+
+<!-- Shapes -->
+
+	<shape type="ply" id="mesh-立方体_001" name="mesh-立方体_001">
+		<string name="filename" value="meshes/立方体_001.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_003" name="mesh-立方体_003">
+		<string name="filename" value="meshes/立方体_003.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_002" name="mesh-立方体_002">
+		<string name="filename" value="meshes/立方体_002.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_004" name="mesh-立方体_004">
+		<string name="filename" value="meshes/立方体_004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_005" name="mesh-立方体_005">
+		<string name="filename" value="meshes/立方体_005.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_007" name="mesh-立方体_007">
+		<string name="filename" value="meshes/立方体_007.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_006" name="mesh-立方体_006">
+		<string name="filename" value="meshes/立方体_006.ply"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_008" name="mesh-立方体_008">
+		<string name="filename" value="meshes/立方体_008.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_leather.009" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_009" name="mesh-立方体_009">
+		<string name="filename" value="meshes/立方体_009.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体" name="mesh-立方体">
+		<string name="filename" value="meshes/立方体.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_017" name="mesh-立方体_017">
+		<string name="filename" value="meshes/立方体_017.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_019" name="mesh-立方体_019">
+		<string name="filename" value="meshes/立方体_019.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_018" name="mesh-立方体_018">
+		<string name="filename" value="meshes/立方体_018.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_020" name="mesh-立方体_020">
+		<string name="filename" value="meshes/立方体_020.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_021" name="mesh-立方体_021">
+		<string name="filename" value="meshes/立方体_021.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_023" name="mesh-立方体_023">
+		<string name="filename" value="meshes/立方体_023.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_022" name="mesh-立方体_022">
+		<string name="filename" value="meshes/立方体_022.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_024" name="mesh-立方体_024">
+		<string name="filename" value="meshes/立方体_024.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_025" name="mesh-立方体_025">
+		<string name="filename" value="meshes/立方体_025.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_027" name="mesh-立方体_027">
+		<string name="filename" value="meshes/立方体_027.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_026" name="mesh-立方体_026">
+		<string name="filename" value="meshes/立方体_026.ply"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_028" name="mesh-立方体_028">
+		<string name="filename" value="meshes/立方体_028.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_leather.008" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_014" name="mesh-立方体_014">
+		<string name="filename" value="meshes/立方体_014.ply"/>
+		<ref id="mat-custom_plastic.007" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_016" name="mesh-立方体_016">
+		<string name="filename" value="meshes/立方体_016.ply"/>
+		<ref id="mat-custom_plastic.007" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体" name="mesh-柱体">
+		<string name="filename" value="meshes/柱体.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_001" name="mesh-柱体_001">
+		<string name="filename" value="meshes/柱体_001.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_003" name="mesh-房屋轮廓_003">
+		<string name="filename" value="meshes/房屋轮廓_003.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_004" name="mesh-房屋轮廓_004">
+		<string name="filename" value="meshes/房屋轮廓_004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-灯-custom_plastic.014" name="mesh-灯-custom_plastic.014">
+		<string name="filename" value="meshes/灯-custom_plastic.014.ply"/>
+		<ref id="mat-custom_plastic.014" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-灯-custom_plastic.015" name="mesh-灯-custom_plastic.015">
+		<string name="filename" value="meshes/灯-custom_plastic.015.ply"/>
+		<ref id="mat-custom_plastic.015" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-踢脚线" name="mesh-踢脚线">
+		<string name="filename" value="meshes/踢脚线.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.013" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_002" name="mesh-柱体_002">
+		<string name="filename" value="meshes/柱体_002.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_003" name="mesh-柱体_003">
+		<string name="filename" value="meshes/柱体_003.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_004" name="mesh-柱体_004">
+		<string name="filename" value="meshes/柱体_004.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_005" name="mesh-柱体_005">
+		<string name="filename" value="meshes/柱体_005.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体" name="mesh-球体">
+		<string name="filename" value="meshes/球体.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_001" name="mesh-球体_001">
+		<string name="filename" value="meshes/球体_001.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_029" name="mesh-立方体_029">
+		<string name="filename" value="meshes/立方体_029.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_034" name="mesh-立方体_034">
+		<string name="filename" value="meshes/立方体_034.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_035" name="mesh-立方体_035">
+		<string name="filename" value="meshes/立方体_035.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_001" name="mesh-平面_001">
+		<string name="filename" value="meshes/平面_001.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_002" name="mesh-平面_002">
+		<string name="filename" value="meshes/平面_002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_004" name="mesh-平面_004">
+		<string name="filename" value="meshes/平面_004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_005" name="mesh-平面_005">
+		<string name="filename" value="meshes/平面_005.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_006" name="mesh-平面_006">
+		<string name="filename" value="meshes/平面_006.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_007" name="mesh-平面_007">
+		<string name="filename" value="meshes/平面_007.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_009" name="mesh-平面_009">
+		<string name="filename" value="meshes/平面_009.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_010" name="mesh-平面_010">
+		<string name="filename" value="meshes/平面_010.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_011" name="mesh-平面_011">
+		<string name="filename" value="meshes/平面_011.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_012" name="mesh-平面_012">
+		<string name="filename" value="meshes/平面_012.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_013" name="mesh-平面_013">
+		<string name="filename" value="meshes/平面_013.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_014" name="mesh-平面_014">
+		<string name="filename" value="meshes/平面_014.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_015" name="mesh-平面_015">
+		<string name="filename" value="meshes/平面_015.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_016" name="mesh-平面_016">
+		<string name="filename" value="meshes/平面_016.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_017" name="mesh-平面_017">
+		<string name="filename" value="meshes/平面_017.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_018" name="mesh-平面_018">
+		<string name="filename" value="meshes/平面_018.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_019" name="mesh-平面_019">
+		<string name="filename" value="meshes/平面_019.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_020" name="mesh-平面_020">
+		<string name="filename" value="meshes/平面_020.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_021" name="mesh-平面_021">
+		<string name="filename" value="meshes/平面_021.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_023" name="mesh-平面_023">
+		<string name="filename" value="meshes/平面_023.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_025" name="mesh-平面_025">
+		<string name="filename" value="meshes/平面_025.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_026" name="mesh-平面_026">
+		<string name="filename" value="meshes/平面_026.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_027" name="mesh-平面_027">
+		<string name="filename" value="meshes/平面_027.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_028" name="mesh-平面_028">
+		<string name="filename" value="meshes/平面_028.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_031" name="mesh-平面_031">
+		<string name="filename" value="meshes/平面_031.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_032" name="mesh-平面_032">
+		<string name="filename" value="meshes/平面_032.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_036" name="mesh-平面_036">
+		<string name="filename" value="meshes/平面_036.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_037" name="mesh-平面_037">
+		<string name="filename" value="meshes/平面_037.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_040" name="mesh-平面_040">
+		<string name="filename" value="meshes/平面_040.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_cloth.005" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_010" name="mesh-房屋轮廓_010">
+		<string name="filename" value="meshes/房屋轮廓_010.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_012" name="mesh-房屋轮廓_012">
+		<string name="filename" value="meshes/房屋轮廓_012.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_013" name="mesh-房屋轮廓_013">
+		<string name="filename" value="meshes/房屋轮廓_013.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_014" name="mesh-房屋轮廓_014">
+		<string name="filename" value="meshes/房屋轮廓_014.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_015" name="mesh-房屋轮廓_015">
+		<string name="filename" value="meshes/房屋轮廓_015.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_016" name="mesh-房屋轮廓_016">
+		<string name="filename" value="meshes/房屋轮廓_016.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_020" name="mesh-房屋轮廓_020">
+		<string name="filename" value="meshes/房屋轮廓_020.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_024" name="mesh-房屋轮廓_024">
+		<string name="filename" value="meshes/房屋轮廓_024.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_026" name="mesh-房屋轮廓_026">
+		<string name="filename" value="meshes/房屋轮廓_026.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_029" name="mesh-房屋轮廓_029">
+		<string name="filename" value="meshes/房屋轮廓_029.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_030" name="mesh-房屋轮廓_030">
+		<string name="filename" value="meshes/房屋轮廓_030.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_034" name="mesh-房屋轮廓_034">
+		<string name="filename" value="meshes/房屋轮廓_034.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_cloth.019" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_036" name="mesh-房屋轮廓_036">
+		<string name="filename" value="meshes/房屋轮廓_036.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_037" name="mesh-房屋轮廓_037">
+		<string name="filename" value="meshes/房屋轮廓_037.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_019" name="mesh-柱体_019">
+		<string name="filename" value="meshes/柱体_019.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_020" name="mesh-柱体_020">
+		<string name="filename" value="meshes/柱体_020.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_021" name="mesh-柱体_021">
+		<string name="filename" value="meshes/柱体_021.ply"/>
+		<ref id="mat-custom_plastic.020" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_024" name="mesh-柱体_024">
+		<string name="filename" value="meshes/柱体_024.ply"/>
+		<ref id="mat-custom_plastic.020" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_026" name="mesh-柱体_026">
+		<string name="filename" value="meshes/柱体_026.ply"/>
+		<ref id="mat-itu_metal.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_027" name="mesh-柱体_027">
+		<string name="filename" value="meshes/柱体_027.ply"/>
+		<ref id="mat-custom_plastic" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_028" name="mesh-柱体_028">
+		<string name="filename" value="meshes/柱体_028.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_029" name="mesh-柱体_029">
+		<string name="filename" value="meshes/柱体_029.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_053" name="mesh-立方体_053">
+		<string name="filename" value="meshes/立方体_053.ply"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_054" name="mesh-立方体_054">
+		<string name="filename" value="meshes/立方体_054.ply"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_055" name="mesh-立方体_055">
+		<string name="filename" value="meshes/立方体_055.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_060" name="mesh-立方体_060">
+		<string name="filename" value="meshes/立方体_060.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.021" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_070" name="mesh-立方体_070">
+		<string name="filename" value="meshes/立方体_070.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_073" name="mesh-立方体_073">
+		<string name="filename" value="meshes/立方体_073.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_075" name="mesh-立方体_075">
+		<string name="filename" value="meshes/立方体_075.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_concrete.017" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_076" name="mesh-立方体_076">
+		<string name="filename" value="meshes/立方体_076.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_concrete.017" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_079" name="mesh-立方体_079">
+		<string name="filename" value="meshes/立方体_079.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.013" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_082" name="mesh-立方体_082">
+		<string name="filename" value="meshes/立方体_082.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_083" name="mesh-立方体_083">
+		<string name="filename" value="meshes/立方体_083.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_084" name="mesh-立方体_084">
+		<string name="filename" value="meshes/立方体_084.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_085" name="mesh-立方体_085">
+		<string name="filename" value="meshes/立方体_085.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_087" name="mesh-立方体_087">
+		<string name="filename" value="meshes/立方体_087.ply"/>
+		<ref id="mat-itu_ceiling_board.027" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_093" name="mesh-立方体_093">
+		<string name="filename" value="meshes/立方体_093.ply"/>
+		<ref id="mat-itu_ceiling_board.027" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-背景墙" name="mesh-背景墙">
+		<string name="filename" value="meshes/背景墙.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_009" name="mesh-房屋轮廓_009">
+		<string name="filename" value="meshes/房屋轮廓_009.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_011" name="mesh-房屋轮廓_011">
+		<string name="filename" value="meshes/房屋轮廓_011.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_006" name="mesh-柱体_006">
+		<string name="filename" value="meshes/柱体_006.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_007" name="mesh-柱体_007">
+		<string name="filename" value="meshes/柱体_007.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_002" name="mesh-球体_002">
+		<string name="filename" value="meshes/球体_002.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_036" name="mesh-立方体_036">
+		<string name="filename" value="meshes/立方体_036.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_022" name="mesh-平面_022">
+		<string name="filename" value="meshes/平面_022.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_017" name="mesh-房屋轮廓_017">
+		<string name="filename" value="meshes/房屋轮廓_017.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_018" name="mesh-房屋轮廓_018">
+		<string name="filename" value="meshes/房屋轮廓_018.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_019" name="mesh-房屋轮廓_019">
+		<string name="filename" value="meshes/房屋轮廓_019.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_008" name="mesh-柱体_008">
+		<string name="filename" value="meshes/柱体_008.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_009" name="mesh-柱体_009">
+		<string name="filename" value="meshes/柱体_009.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_013" name="mesh-球体_013">
+		<string name="filename" value="meshes/球体_013.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_048" name="mesh-立方体_048">
+		<string name="filename" value="meshes/立方体_048.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_049" name="mesh-立方体_049">
+		<string name="filename" value="meshes/立方体_049.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_066" name="mesh-立方体_066">
+		<string name="filename" value="meshes/立方体_066.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_067" name="mesh-立方体_067">
+		<string name="filename" value="meshes/立方体_067.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_074" name="mesh-立方体_074">
+		<string name="filename" value="meshes/立方体_074.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_097" name="mesh-立方体_097">
+		<string name="filename" value="meshes/立方体_097.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_024" name="mesh-平面_024">
+		<string name="filename" value="meshes/平面_024.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_021" name="mesh-房屋轮廓_021">
+		<string name="filename" value="meshes/房屋轮廓_021.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_022" name="mesh-房屋轮廓_022">
+		<string name="filename" value="meshes/房屋轮廓_022.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_023" name="mesh-房屋轮廓_023">
+		<string name="filename" value="meshes/房屋轮廓_023.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_011" name="mesh-柱体_011">
+		<string name="filename" value="meshes/柱体_011.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_012" name="mesh-柱体_012">
+		<string name="filename" value="meshes/柱体_012.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_014" name="mesh-球体_014">
+		<string name="filename" value="meshes/球体_014.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_050" name="mesh-立方体_050">
+		<string name="filename" value="meshes/立方体_050.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_051" name="mesh-立方体_051">
+		<string name="filename" value="meshes/立方体_051.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_002" name="mesh-房屋轮廓_002">
+		<string name="filename" value="meshes/房屋轮廓_002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_025" name="mesh-房屋轮廓_025">
+		<string name="filename" value="meshes/房屋轮廓_025.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_013" name="mesh-柱体_013">
+		<string name="filename" value="meshes/柱体_013.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_014" name="mesh-柱体_014">
+		<string name="filename" value="meshes/柱体_014.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_015" name="mesh-柱体_015">
+		<string name="filename" value="meshes/柱体_015.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_001" name="mesh-房屋轮廓_001">
+		<string name="filename" value="meshes/房屋轮廓_001.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_027" name="mesh-房屋轮廓_027">
+		<string name="filename" value="meshes/房屋轮廓_027.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_035" name="mesh-房屋轮廓_035">
+		<string name="filename" value="meshes/房屋轮廓_035.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_016" name="mesh-柱体_016">
+		<string name="filename" value="meshes/柱体_016.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_025" name="mesh-柱体_025">
+		<string name="filename" value="meshes/柱体_025.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_061" name="mesh-立方体_061">
+		<string name="filename" value="meshes/立方体_061.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_064" name="mesh-立方体_064">
+		<string name="filename" value="meshes/立方体_064.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_071" name="mesh-立方体_071">
+		<string name="filename" value="meshes/立方体_071.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_072" name="mesh-立方体_072">
+		<string name="filename" value="meshes/立方体_072.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_028" name="mesh-房屋轮廓_028">
+		<string name="filename" value="meshes/房屋轮廓_028.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_038" name="mesh-房屋轮廓_038">
+		<string name="filename" value="meshes/房屋轮廓_038.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_039" name="mesh-房屋轮廓_039">
+		<string name="filename" value="meshes/房屋轮廓_039.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_040" name="mesh-房屋轮廓_040">
+		<string name="filename" value="meshes/房屋轮廓_040.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_017" name="mesh-柱体_017">
+		<string name="filename" value="meshes/柱体_017.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_062" name="mesh-立方体_062">
+		<string name="filename" value="meshes/立方体_062.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_065" name="mesh-立方体_065">
+		<string name="filename" value="meshes/立方体_065.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_077" name="mesh-立方体_077">
+		<string name="filename" value="meshes/立方体_077.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_029" name="mesh-平面_029">
+		<string name="filename" value="meshes/平面_029.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_031" name="mesh-房屋轮廓_031">
+		<string name="filename" value="meshes/房屋轮廓_031.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_032" name="mesh-房屋轮廓_032">
+		<string name="filename" value="meshes/房屋轮廓_032.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_033" name="mesh-房屋轮廓_033">
+		<string name="filename" value="meshes/房屋轮廓_033.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.016" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_022" name="mesh-柱体_022">
+		<string name="filename" value="meshes/柱体_022.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_023" name="mesh-柱体_023">
+		<string name="filename" value="meshes/柱体_023.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_019" name="mesh-球体_019">
+		<string name="filename" value="meshes/球体_019.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_058" name="mesh-立方体_058">
+		<string name="filename" value="meshes/立方体_058.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_059" name="mesh-立方体_059">
+		<string name="filename" value="meshes/立方体_059.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_041" name="mesh-房屋轮廓_041">
+		<string name="filename" value="meshes/房屋轮廓_041.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_042" name="mesh-房屋轮廓_042">
+		<string name="filename" value="meshes/房屋轮廓_042.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_043" name="mesh-房屋轮廓_043">
+		<string name="filename" value="meshes/房屋轮廓_043.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_078" name="mesh-立方体_078">
+		<string name="filename" value="meshes/立方体_078.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_006" name="mesh-房屋轮廓_006">
+		<string name="filename" value="meshes/房屋轮廓_006.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_007" name="mesh-房屋轮廓_007">
+		<string name="filename" value="meshes/房屋轮廓_007.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_005" name="mesh-房屋轮廓_005">
+		<string name="filename" value="meshes/房屋轮廓_005.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓_008" name="mesh-房屋轮廓_008">
+		<string name="filename" value="meshes/房屋轮廓_008.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_035" name="mesh-柱体_035">
+		<string name="filename" value="meshes/柱体_035.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_036" name="mesh-柱体_036">
+		<string name="filename" value="meshes/柱体_036.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_080" name="mesh-立方体_080">
+		<string name="filename" value="meshes/立方体_080.ply"/>
+		<ref id="mat-itu_glass.011" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_081" name="mesh-立方体_081">
+		<string name="filename" value="meshes/立方体_081.ply"/>
+		<ref id="mat-itu_glass.011" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_086-itu_metal" name="mesh-立方体_086-itu_metal">
+		<string name="filename" value="meshes/立方体_086-itu_metal.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_086-custom_plastic.026" name="mesh-立方体_086-custom_plastic.026">
+		<string name="filename" value="meshes/立方体_086-custom_plastic.026.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.026" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_092" name="mesh-立方体_092">
+		<string name="filename" value="meshes/立方体_092.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_030" name="mesh-柱体_030">
+		<string name="filename" value="meshes/柱体_030.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_031" name="mesh-柱体_031">
+		<string name="filename" value="meshes/柱体_031.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_011-custom_plastic.002" name="mesh-立方体_011-custom_plastic.002">
+		<string name="filename" value="meshes/立方体_011-custom_plastic.002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_011-itu_glass.004" name="mesh-立方体_011-itu_glass.004">
+		<string name="filename" value="meshes/立方体_011-itu_glass.004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.004" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_037-custom_plastic.002" name="mesh-立方体_037-custom_plastic.002">
+		<string name="filename" value="meshes/立方体_037-custom_plastic.002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_037-itu_glass.004" name="mesh-立方体_037-itu_glass.004">
+		<string name="filename" value="meshes/立方体_037-itu_glass.004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.004" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_038-custom_plastic.002" name="mesh-立方体_038-custom_plastic.002">
+		<string name="filename" value="meshes/立方体_038-custom_plastic.002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_038-itu_glass.004" name="mesh-立方体_038-itu_glass.004">
+		<string name="filename" value="meshes/立方体_038-itu_glass.004.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass.004" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_089" name="mesh-立方体_089">
+		<string name="filename" value="meshes/立方体_089.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_090" name="mesh-立方体_090">
+		<string name="filename" value="meshes/立方体_090.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_091" name="mesh-立方体_091">
+		<string name="filename" value="meshes/立方体_091.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_094" name="mesh-立方体_094">
+		<string name="filename" value="meshes/立方体_094.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_095" name="mesh-立方体_095">
+		<string name="filename" value="meshes/立方体_095.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_096" name="mesh-立方体_096">
+		<string name="filename" value="meshes/立方体_096.ply"/>
+		<ref id="mat-itu_metal.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_010" name="mesh-柱体_010">
+		<string name="filename" value="meshes/柱体_010.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_018" name="mesh-柱体_018">
+		<string name="filename" value="meshes/柱体_018.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_032" name="mesh-柱体_032">
+		<string name="filename" value="meshes/柱体_032.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_033" name="mesh-柱体_033">
+		<string name="filename" value="meshes/柱体_033.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_034" name="mesh-柱体_034">
+		<string name="filename" value="meshes/柱体_034.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_037" name="mesh-柱体_037">
+		<string name="filename" value="meshes/柱体_037.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_038" name="mesh-柱体_038">
+		<string name="filename" value="meshes/柱体_038.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-柱体_039" name="mesh-柱体_039">
+		<string name="filename" value="meshes/柱体_039.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_042" name="mesh-立方体_042">
+		<string name="filename" value="meshes/立方体_042.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.018" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_043-itu_metal" name="mesh-立方体_043-itu_metal">
+		<string name="filename" value="meshes/立方体_043-itu_metal.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_043-custom_plastic.002" name="mesh-立方体_043-custom_plastic.002">
+		<string name="filename" value="meshes/立方体_043-custom_plastic.002.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-custom_plastic.002" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_039" name="mesh-立方体_039">
+		<string name="filename" value="meshes/立方体_039.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_040" name="mesh-立方体_040">
+		<string name="filename" value="meshes/立方体_040.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_041" name="mesh-立方体_041">
+		<string name="filename" value="meshes/立方体_041.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_044" name="mesh-立方体_044">
+		<string name="filename" value="meshes/立方体_044.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_045" name="mesh-立方体_045">
+		<string name="filename" value="meshes/立方体_045.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_046" name="mesh-立方体_046">
+		<string name="filename" value="meshes/立方体_046.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_047" name="mesh-立方体_047">
+		<string name="filename" value="meshes/立方体_047.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_052" name="mesh-立方体_052">
+		<string name="filename" value="meshes/立方体_052.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_056" name="mesh-立方体_056">
+		<string name="filename" value="meshes/立方体_056.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_057" name="mesh-立方体_057">
+		<string name="filename" value="meshes/立方体_057.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_063" name="mesh-立方体_063">
+		<string name="filename" value="meshes/立方体_063.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_068" name="mesh-立方体_068">
+		<string name="filename" value="meshes/立方体_068.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_069" name="mesh-立方体_069">
+		<string name="filename" value="meshes/立方体_069.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_003" name="mesh-球体_003">
+		<string name="filename" value="meshes/球体_003.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_004" name="mesh-球体_004">
+		<string name="filename" value="meshes/球体_004.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_005" name="mesh-球体_005">
+		<string name="filename" value="meshes/球体_005.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_006" name="mesh-球体_006">
+		<string name="filename" value="meshes/球体_006.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_007" name="mesh-球体_007">
+		<string name="filename" value="meshes/球体_007.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_008" name="mesh-球体_008">
+		<string name="filename" value="meshes/球体_008.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_009" name="mesh-球体_009">
+		<string name="filename" value="meshes/球体_009.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_010" name="mesh-球体_010">
+		<string name="filename" value="meshes/球体_010.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_011" name="mesh-球体_011">
+		<string name="filename" value="meshes/球体_011.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_012" name="mesh-球体_012">
+		<string name="filename" value="meshes/球体_012.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_015" name="mesh-球体_015">
+		<string name="filename" value="meshes/球体_015.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_016" name="mesh-球体_016">
+		<string name="filename" value="meshes/球体_016.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_017" name="mesh-球体_017">
+		<string name="filename" value="meshes/球体_017.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_018" name="mesh-球体_018">
+		<string name="filename" value="meshes/球体_018.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_020" name="mesh-球体_020">
+		<string name="filename" value="meshes/球体_020.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_021" name="mesh-球体_021">
+		<string name="filename" value="meshes/球体_021.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_022" name="mesh-球体_022">
+		<string name="filename" value="meshes/球体_022.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_023" name="mesh-球体_023">
+		<string name="filename" value="meshes/球体_023.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_024" name="mesh-球体_024">
+		<string name="filename" value="meshes/球体_024.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-球体_025" name="mesh-球体_025">
+		<string name="filename" value="meshes/球体_025.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_010" name="mesh-立方体_010">
+		<string name="filename" value="meshes/立方体_010.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_concrete.017" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_012-itu_wood.006" name="mesh-立方体_012-itu_wood.006">
+		<string name="filename" value="meshes/立方体_012-itu_wood.006.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.006" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_012-itu_wood.013" name="mesh-立方体_012-itu_wood.013">
+		<string name="filename" value="meshes/立方体_012-itu_wood.013.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_wood.013" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_013" name="mesh-立方体_013">
+		<string name="filename" value="meshes/立方体_013.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_015" name="mesh-立方体_015">
+		<string name="filename" value="meshes/立方体_015.ply"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_030" name="mesh-立方体_030">
+		<string name="filename" value="meshes/立方体_030.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_031" name="mesh-立方体_031">
+		<string name="filename" value="meshes/立方体_031.ply"/>
+		<ref id="mat-itu_plasterboard.001" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-立方体_032" name="mesh-立方体_032">
+		<string name="filename" value="meshes/立方体_032.ply"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面" name="mesh-平面">
+		<string name="filename" value="meshes/平面.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_033" name="mesh-平面_033">
+		<string name="filename" value="meshes/平面_033.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_034" name="mesh-平面_034">
+		<string name="filename" value="meshes/平面_034.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_035" name="mesh-平面_035">
+		<string name="filename" value="meshes/平面_035.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_038" name="mesh-平面_038">
+		<string name="filename" value="meshes/平面_038.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_glass" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-平面_039" name="mesh-平面_039">
+		<string name="filename" value="meshes/平面_039.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_metal" name="bsdf"/>
+	</shape>
+	<shape type="ply" id="mesh-房屋轮廓" name="mesh-房屋轮廓">
+		<string name="filename" value="meshes/房屋轮廓.ply"/>
+		<boolean name="face_normals" value="true"/>
+		<ref id="mat-itu_concrete.017" name="bsdf"/>
+	</shape>
+
+<!-- Volumes -->
+
+</scene>

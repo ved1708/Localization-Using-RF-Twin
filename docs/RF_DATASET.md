@@ -8,7 +8,25 @@ This process simulates RF signal propagation in the 3D scene and generates heatm
 
 ---
 
-## Script: generate_dataset_ideal_mpc.py
+## Script: generate_rf_dataset.py
+
+## Usage:
+```bash
+# Ideal MPC spectrum (default)
+python generate_rf_dataset.py
+
+# Ideal AoD spectrum
+python generate_rf_dataset.py --ideal --spectrum-type aod
+
+# MVDR beamforming spectrum with default 4×4 array
+python generate_rf_dataset.py --mvdr
+
+# MVDR with custom array size and output dir
+python generate_rf_dataset.py --mvdr --mvdr-m 8 --output-dir dataset_mvdr_8x8
+
+# Custom scene file
+python generate_rf_dataset.py --ideal --scene room_5x3x3.xml
+```
 
 ### Purpose
 

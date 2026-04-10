@@ -10,7 +10,7 @@ Creates a 7m x 5m x 3m rectangular room with:
 - Sofa
 - LED TV
 
-Separate files go into 'meshes/' subfolder for Sionna RF simulation.
+Separate files go into 'meshes_d/' subfolder for Sionna RF simulation.
 Combined file for 3D visualization.
 """
 import os
@@ -136,7 +136,7 @@ MAT_GREY = 0; MAT_WHITE = 1; MAT_WOOD = 2; MAT_GLASS = 3; MAT_METAL = 4; MAT_CON
 def create_scene_meshes(output_dir):
     """Generate all scene meshes."""
     print(f"Generating scene meshes in: {output_dir}")
-    meshes_dir = os.path.join(output_dir, 'meshes')
+    meshes_dir = os.path.join(output_dir, 'meshes_d')
     os.makedirs(meshes_dir, exist_ok=True)
     
     # Combined mesh
@@ -279,21 +279,21 @@ def create_scene_meshes(output_dir):
     write_ply_simple(os.path.join(meshes_dir, 'furniture.ply'), furniture.vertices, furniture.faces)
     add_to_combined(furniture, MAT_WOOD)
     
-    # Pillar - 15cm x 15cm, positioned 30cm from middle chair (chair 2)
-    pillar = MeshBuilder()
-    pillar_size = 0.35
-    middle_chair_x = table_starts_y[1]  # y position of middle table
-    middle_chair_center_y = middle_chair_x + table_length / 2
-    pillar_distance = 0.50  # 30cm from chair
-    middle_chair_back_x = 0.1 + table_width + 0.05 + 0.43  # chair back position
-    pillar_x_center = middle_chair_back_x + pillar_distance
-    pillar_x = (pillar_x_center - pillar_size/2, pillar_x_center + pillar_size/2)
-    pillar_y = (middle_chair_center_y - pillar_size/2, middle_chair_center_y + pillar_size/2)
+    # # Pillar - 15cm x 15cm, positioned 30cm from middle chair (chair 2)
+    # pillar = MeshBuilder()
+    # pillar_size = 0.35
+    # middle_chair_x = table_starts_y[1]  # y position of middle table
+    # middle_chair_center_y = middle_chair_x + table_length / 2
+    # pillar_distance = 0.50  # 30cm from chair
+    # middle_chair_back_x = 0.1 + table_width + 0.05 + 0.43  # chair back position
+    # pillar_x_center = middle_chair_back_x + pillar_distance
+    # pillar_x = (pillar_x_center - pillar_size/2, pillar_x_center + pillar_size/2)
+    # pillar_y = (middle_chair_center_y - pillar_size/2, middle_chair_center_y + pillar_size/2)
     
-    pillar.add_box(pillar_x, pillar_y, (0, 3.0))  # Floor to ceiling
-    write_ply_simple(os.path.join(meshes_dir, 'pillar.ply'), pillar.vertices, pillar.faces)
-    add_to_combined(pillar, MAT_CONCRETE)
-    print("✓ Pillar (15cm x 15cm, concrete)")
+    # pillar.add_box(pillar_x, pillar_y, (0, 3.0))  # Floor to ceiling
+    # write_ply_simple(os.path.join(meshes_dir, 'pillar.ply'), pillar.vertices, pillar.faces)
+    # add_to_combined(pillar, MAT_CONCRETE)
+    # print("✓ Pillar (15cm x 15cm, concrete)")
     
     # Center coffee table and sofas
     furniture_center = MeshBuilder()
@@ -389,57 +389,82 @@ def create_scene_meshes(output_dir):
     add_to_combined(led_tv, MAT_METAL)
     print("✓ LED TV on back wall (facing sofa)")
 
+    # # ---------------------------------------------------
+    # # Standing Person (RF human phantom approximation)
+    # # ---------------------------------------------------
+    # person = MeshBuilder()
+
+    # # Dimensions based on RF human-body approximation
+    # person_height = 1.40
+    # torso_height = 1.0
+    # leg_height = 0.9
+    # body_width = 0.45
+    # body_depth = 0.28
+    # head_size = 0.20
+
+    # # Position person slightly offset from center table
+    # person_center_x = 4.8
+    # person_center_y = 2.5
+
+    # px = (person_center_x - body_width/2, person_center_x + body_width/2)
+    # py = (person_center_y - body_depth/2, person_center_y + body_depth/2)
+
+    # # Torso
+    # person.add_box(px, py, (leg_height, leg_height + torso_height))
+
+    # # Head
+    # head_radius = head_size / 2
+    # head_center = [person_center_x, person_center_y, leg_height + torso_height + head_radius]
+    # person.add_sphere(head_center, head_radius, resolution=16)
+
+    # # Legs
+    # leg_gap = 0.05
+    # leg_width = (body_width - leg_gap) / 2
+
+    # # Left leg
+    # person.add_box(
+    #     (person_center_x - body_width/2, person_center_x - body_width/2 + leg_width),
+    #     py,
+    #     (0, leg_height)
+    # )
+
+    # # Right leg
+    # person.add_box(
+    #     (person_center_x + body_width/2 - leg_width, person_center_x + body_width/2),
+    #     py,
+    #     (0, leg_height)
+    # )
+
+    # write_ply_simple(os.path.join(meshes_dir, 'person.ply'),
+    #                  person.vertices, person.faces)
+
+    # add_to_combined(person, MAT_CONCRETE)
+    # print("✓ Person (standing)")
+
     # ---------------------------------------------------
-    # Standing Person (RF human phantom approximation)
+    # Metallic Cube on Table
     # ---------------------------------------------------
-    person = MeshBuilder()
-
-    # Dimensions based on RF human-body approximation
-    person_height = 1.40
-    torso_height = 1.0
-    leg_height = 0.9
-    body_width = 0.45
-    body_depth = 0.28
-    head_size = 0.20
-
-    # Position person slightly offset from center table
-    person_center_x = 4.8
-    person_center_y = 2.5
-
-    px = (person_center_x - body_width/2, person_center_x + body_width/2)
-    py = (person_center_y - body_depth/2, person_center_y + body_depth/2)
-
-    # Torso
-    person.add_box(px, py, (leg_height, leg_height + torso_height))
-
-    # Head
-    head_radius = head_size / 2
-    head_center = [person_center_x, person_center_y, leg_height + torso_height + head_radius]
-    person.add_sphere(head_center, head_radius, resolution=16)
-
-    # Legs
-    leg_gap = 0.05
-    leg_width = (body_width - leg_gap) / 2
-
-    # Left leg
-    person.add_box(
-        (person_center_x - body_width/2, person_center_x - body_width/2 + leg_width),
-        py,
-        (0, leg_height)
-    )
-
-    # Right leg
-    person.add_box(
-        (person_center_x + body_width/2 - leg_width, person_center_x + body_width/2),
-        py,
-        (0, leg_height)
-    )
-
-    write_ply_simple(os.path.join(meshes_dir, 'person.ply'),
-                     person.vertices, person.faces)
-
-    add_to_combined(person, MAT_CONCRETE)
-    print("✓ Person (standing)")
+    metallic_cube = MeshBuilder()
+    
+    # Cube dimensions: 20cm x 20cm x 20cm
+    cube_size = 0.20
+    
+    # Position on center coffee table
+    center_table_center_x = room_center_x  # 3.5
+    center_table_center_y = room_center_y  # 2.5
+    center_table_top_height = center_table_height  # 0.4
+    
+    cube_x = (center_table_center_x - cube_size/2, center_table_center_x + cube_size/2)
+    cube_y = (center_table_center_y - cube_size/2, center_table_center_y + cube_size/2)
+    cube_z = (center_table_top_height, center_table_top_height + 0.50)
+    
+    metallic_cube.add_box(cube_x, cube_y, cube_z)
+    
+    write_ply_simple(os.path.join(meshes_dir, 'metallic_cube.ply'),
+                     metallic_cube.vertices, metallic_cube.faces)
+    
+    add_to_combined(metallic_cube, MAT_METAL)
+    print("✓ Metallic cube on center coffee table")
     
     # Write combined PLY
     combined_path = os.path.join(output_dir, 'room_5x3x3_combined.ply')
@@ -450,28 +475,76 @@ def create_scene_meshes(output_dir):
 def create_scene_xml(output_path):
     """Generate scene XML with separate objects."""
     print(f"\nGenerating scene XML: {output_path}")
-    xml_content = """<scene version="2.1.0">
-    <emitter type="constant"><rgb name="radiance" value="1.0"/></emitter>
-    
-    <bsdf type="diffuse" id="mat_grey"><rgb name="reflectance" value="0.3, 0.3, 0.3"/></bsdf>
-    <bsdf type="diffuse" id="mat_white"><rgb name="reflectance" value="0.75, 0.75, 0.75"/></bsdf>
-    <bsdf type="diffuse" id="mat_wood"><rgb name="reflectance" value="0.6, 0.3, 0.1"/></bsdf>
-    <bsdf type="dielectric" id="mat_glass"><float name="int_ior" value="1.5"/><float name="ext_ior" value="1.0"/></bsdf>
-    <bsdf type="conductor" id="mat_metal">
-        <rgb name="eta" value="1.657, 0.880, 0.521"/>
-        <rgb name="k" value="9.223, 6.269, 4.837"/>
+    xml_content = """<?xml version="1.0" encoding="utf-8"?>
+<scene version="2.1.0">
+    <emitter type="constant">
+        <rgb name="radiance" value="1.0"/>
+    </emitter>
+
+    <!-- Materials -->
+    <bsdf type="diffuse" id="mat_concrete">
+        <rgb name="reflectance" value="0.5 0.5 0.5"/>
     </bsdf>
+    <bsdf type="diffuse" id="mat_wood">
+        <rgb name="reflectance" value="0.6 0.4 0.2"/>
+    </bsdf>
+    <bsdf type="diffuse" id="mat_glass">
+        <rgb name="reflectance" value="0.1 0.1 0.9"/>
+    </bsdf>
+    <bsdf type="diffuse" id="mat_metal">
+        <rgb name="reflectance" value="0.8 0.8 0.8"/>
+    </bsdf>
+
+    <!-- Shapes with Material References -->
+    <shape type="ply" id="floor">
+        <string name="filename" value="meshes_d/floor.ply"/>
+        <ref id="mat_concrete"/>
+    </shape>
     
-    <shape type="ply" id="floor"><string name="filename" value="meshes/floor.ply"/><ref id="mat_grey"/></shape>
-    <shape type="ply" id="ceiling"><string name="filename" value="meshes/ceiling.ply"/><ref id="mat_white"/></shape>
-    <shape type="ply" id="walls"><string name="filename" value="meshes/walls.ply"/><ref id="mat_white"/></shape>
-    <shape type="ply" id="window"><string name="filename" value="meshes/window.ply"/><ref id="mat_glass"/></shape>
-    <shape type="ply" id="door"><string name="filename" value="meshes/door.ply"/><ref id="mat_wood"/></shape>
-    <shape type="ply" id="furniture"><string name="filename" value="meshes/furniture.ply"/><ref id="mat_wood"/></shape>
-    <shape type="ply" id="pillar"><string name="filename" value="meshes/pillar.ply"/><ref id="mat_white"/></shape>
-    <shape type="ply" id="furniture_center"><string name="filename" value="meshes/furniture_center.ply"/><ref id="mat_wood"/></shape>
-    <shape type="ply" id="led_tv"><string name="filename" value="meshes/led_tv.ply"/><ref id="mat_metal"/></shape>
-    <shape type="ply" id="person"><string name="filename" value="meshes/person.ply"/><ref id="mat_grey"/></shape>
+    <shape type="ply" id="ceiling">
+        <string name="filename" value="meshes_d/ceiling.ply"/>
+        <ref id="mat_concrete"/>
+    </shape>
+    
+    <shape type="ply" id="walls">
+        <string name="filename" value="meshes_d/walls.ply"/>
+        <ref id="mat_concrete"/>
+    </shape>
+    
+    <shape type="ply" id="window">
+        <string name="filename" value="meshes_d/window.ply"/>
+        <ref id="mat_glass"/>
+    </shape>
+    
+    <shape type="ply" id="door">
+        <string name="filename" value="meshes_d/door.ply"/>
+        <ref id="mat_wood"/>
+    </shape>
+    
+    <shape type="ply" id="furniture">
+        <string name="filename" value="meshes_d/furniture.ply"/>
+        <ref id="mat_wood"/>
+    </shape>
+    
+    # <shape type="ply" id="pillar">
+    #     <string name="filename" value="meshes_d/pillar.ply"/>
+    #     <ref id="mat_concrete"/>
+    # </shape>
+    
+    <shape type="ply" id="furniture_center">
+        <string name="filename" value="meshes_d/furniture_center.ply"/>
+        <ref id="mat_wood"/>
+    </shape>
+    
+    <shape type="ply" id="led_tv">
+        <string name="filename" value="meshes_d/led_tv.ply"/>
+        <ref id="mat_metal"/>
+    </shape>
+    
+    <shape type="ply" id="metallic_cube">
+        <string name="filename" value="meshes_d/metallic_cube.ply"/>
+        <ref id="mat_metal"/>
+    </shape>
 </scene>
 """
     with open(output_path, 'w') as f:
@@ -481,9 +554,10 @@ def create_scene_xml(output_path):
 if __name__ == "__main__":
     project_dir = os.path.dirname(os.path.abspath(__file__))
     create_scene_meshes(project_dir)
-    create_scene_xml(os.path.join(project_dir, "room_5x3x3.xml"))
+    create_scene_xml(os.path.join(project_dir, "room_with_cube.xml"))
     print("\n--- Complete ---")
     print("Rectangular room: 7m x 5m x 3m")
     print("Room dimensions: x=0-7m, y=0-5m, z=0-3m")
     print("Combined PLY: room_5x3x3_combined.ply (for 3D viewers)")
-    print("Separate PLYs: meshes/ (for Sionna RF simulation)")
+    print("Separate PLYs: meshes_d/ (for Sionna RF simulation)")
+    
