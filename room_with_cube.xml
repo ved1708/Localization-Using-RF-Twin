@@ -49,11 +49,6 @@
         <ref id="mat_wood"/>
     </shape>
     
-     <!-- <shape type="ply" id="pillar">
-         <string name="filename" value="meshes_d/pillar.ply"/>
-         <ref id="mat_concrete"/>
-     </shape> -->
-    
     <shape type="ply" id="furniture_center">
         <string name="filename" value="meshes_d/furniture_center.ply"/>
         <ref id="mat_wood"/>

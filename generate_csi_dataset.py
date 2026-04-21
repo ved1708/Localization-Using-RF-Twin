@@ -290,10 +290,10 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
     return img_rgb  # shape: (360*scale, 180*scale, 3)
 
 
-def plot_delay_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3, delay_max_ns=100):
+def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, kernel_sigma=3, delay_max_ns=200):
     """
     Propagation-delay spatial spectrum plotted at arrival direction — RGB encoding:
-      R = propagation delay (tau, 0–delay_max_ns ns, normalized to [0,1])
+      R = propagation delay (tau, 0-delay_max_ns ns, normalized to [0,1])
       G = path amplitude (reference channel)
       B = path amplitude (same as G — duplicated for visual balance)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
@@ -570,14 +570,8 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
 
     is_single_rx = len(rx_locs) == 1
 
-    if is_single_rx:
-        spectrum_dir = output_dir
-        os.makedirs(spectrum_dir, exist_ok=True)
-    else:
-        spectrum_dir = os.path.join(output_dir, 'spectrum')
-        cameras_file = os.path.join(output_dir, 'cameras.txt')
-        images_file  = os.path.join(output_dir, 'images.txt')
-        os.makedirs(spectrum_dir, exist_ok=True)
+    spectrum_dir = output_dir
+    os.makedirs(spectrum_dir, exist_ok=True)
     
     if 'tx' in scene.transmitters: scene.remove('tx')
     scene.add(Transmitter(name='tx', position=tx_loc))
@@ -653,66 +647,12 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
         if phase_norm_params is not None and phase_norm_params.get("rg_scale") is not None:
             print(f"Using CLI phase norm params: {phase_norm_params}")
         else:
-            print("Phase mode: computing dataset-level normalization (stable mapping across all training images).")
-            sample_indices = np.linspace(0, len(rx_locs)-1, min(50, len(rx_locs)), dtype=int)
-            rng = np.random.default_rng(12345)
-            rg_samples = []
-            b_db_samples = []
-    
-            for idx in tqdm(sample_indices, desc="Sampling phase stats", unit="pos"):
-                rx.position = rx_locs[idx]
-                paths = scene.compute_paths(max_depth=2, reflection=True, diffraction=False, scattering=True,
-                                            scat_keep_prob=0.5, num_samples=int(5e5))
-                if paths.a.shape[-2] == 0:
-                    continue
-    
-                spec = np.transpose(plot_phase_spectrum(paths), (1, 0, 2))
-                r = spec[:, :, 0]
-                g = spec[:, :, 1]
-                b = spec[:, :, 2]
-    
-                rg_abs = np.concatenate([np.abs(r).ravel(), np.abs(g).ravel()])
-                rg_abs = rg_abs[rg_abs > 0]
-                if rg_abs.size > 0:
-                    take = min(8000, rg_abs.size)
-                    rg_samples.append(rng.choice(rg_abs, size=take, replace=False))
-    
-                b_db = 10.0 * np.log10(np.maximum(b, 1e-30))
-                b_db = b_db[np.isfinite(b_db)]
-                if b_db.size > 0:
-                    take = min(8000, b_db.size)
-                    b_db_samples.append(rng.choice(b_db, size=take, replace=False))
-    
-            if len(rg_samples) > 0:
-                rg_scale = float(np.percentile(np.concatenate(rg_samples), 99.0))
-            else:
-                rg_scale = 1.0
-            rg_scale = max(rg_scale, 1e-12)
-    
-            if len(b_db_samples) > 0:
-                b_all = np.concatenate(b_db_samples)
-                b_lo_db = float(np.percentile(b_all, 10.0))
-                b_hi_db = float(np.percentile(b_all, 99.0))
-            else:
-                b_lo_db, b_hi_db = -120.0, -40.0
-    
-            if b_hi_db <= b_lo_db:
-                b_hi_db = b_lo_db + 1.0
-    
+            print("Phase mode: using hardcoded dataset-level normalization.")
             phase_norm_params = {
-                "rg_scale": rg_scale,
-                "b_lo_db": b_lo_db,
-                "b_hi_db": b_hi_db,
+                "rg_scale": 2.8576e-08,
+                "b_lo_db": -97.76,
+                "b_hi_db": -65.16,
             }
-    
-            if not is_single_rx:
-                stats_file = os.path.join(output_dir, "phase_norm_stats.txt")
-                with open(stats_file, "w") as f:
-                    f.write(f"rg_scale {rg_scale}\n")
-                    f.write(f"b_lo_db {b_lo_db}\n")
-                    f.write(f"b_hi_db {b_hi_db}\n")
-                print(f"Phase normalization stats: rg_scale={rg_scale:.4e}, b_lo_db={b_lo_db:.2f}, b_hi_db={b_hi_db:.2f}")
-                print(f"Saved phase normalization stats to {stats_file}")
 
     # 2. Generate Dataset
     image_counter = 1
@@ -754,55 +694,70 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
         else:
             spec_input = spec_norm
 
-        # Generate 3 orientations
+        # Generate orientations and pick the one with most features
         angles_to_use = [rx_yaw * np.pi / 180] if rx_yaw is not None else [0, 2*np.pi/3, 4*np.pi/3]
+        best_angle = None
+        best_persp_img = None
+        best_score = -1
+
         for angle in tqdm(angles_to_use, desc=f"  Orientations {i+1}/{len(rx_locs)}", leave=False, unit="view"):  # 3×120° = exact 360° azimuth, zero overlap
             # Convert Equirectangular to Perspective (MPC stays scalar; AoD/Delay are RGB)
             persp_norm = equirectangular_to_perspective(spec_input, h_fov_deg, angle*180/np.pi, 90, height, width)
             
-            # Quality check: for phase use B channel as signal proxy, otherwise max intensity.
-            signal_peak = np.max(persp_norm[..., 2]) if spectrum_type == 'phase' else np.max(persp_norm)
+            # Calculate score based on the number of features/paths rather than total energy.
+            # To avoid LOS dominating the score, count the area with valid signals.
+            proxy_channel = persp_norm[..., 2] if spectrum_type in ['phase', 'aod', 'delay'] else persp_norm
+            
+            # The user wants both line-of-sight (bright pixels) and least dark patches (high coverage)
+            # Find the peak brightness (LOS check).
+            peak_brightness = np.max(proxy_channel)
+            
+            # Dynamically determine the dark background level for this perspective
+            background_level = np.min(proxy_channel)
+            # Count pixels that are noticeably brighter than the "dark patches" background
+            coverage = np.count_nonzero(proxy_channel > (background_level + 0.05))
+            
+            # The score effectively balances views that have intense peaks (LOS) 
+            # and a large spatial spread of multipaths (looking into the room center)
+            score = peak_brightness * coverage
+            
+            if score > best_score:
+                best_score = score
+                best_angle = angle
+                best_persp_img = persp_norm
+
+        if best_persp_img is not None:
+            # Quality check on the best image
+            signal_peak = np.max(best_persp_img[..., 2]) if spectrum_type in ['phase', 'aod', 'delay'] else np.max(best_persp_img)
             if signal_peak < 0.1:
                 continue
 
             # MPC is saved as a single-channel grayscale image.
             if spectrum_type == 'mpc':
-                persp_img = persp_norm[..., 0]
+                persp_img = best_persp_img[..., 0]
             else:
-                persp_img = persp_norm
-            # persp_img = persp_norm
+                persp_img = best_persp_img
 
             # Ensure float32 0-1
             persp_img = np.clip(persp_img, 0, 1)
             
             # Save Image
-            if is_single_rx:
-                img_filename = f"{spectrum_type}_{rx_loc[0]:.2f}_{rx_loc[1]:.2f}_{rx_loc[2]:.2f}_{int(angle*180/np.pi)}.png"
-            else:
-                img_filename = f"{image_counter:05d}.png"
+            img_filename = f"{spectrum_type}_{rx_loc[0]:.2f}_{rx_loc[1]:.2f}_{rx_loc[2]:.2f}_{round(best_angle*180/np.pi)}.png"
             img_path = os.path.join(spectrum_dir, img_filename)
             if spectrum_type == 'mpc':
                 plt.imsave(img_path, persp_img, cmap='gray', vmin=0.0, vmax=1.0)
-                # np.save(img_path, persp_img.astype(np.float32))
             else:
                 plt.imsave(img_path, persp_img)
             
             # Save Pose
-            orientation = [angle, 0, 0] # Yaw, Pitch, Roll
+            orientation = [best_angle, 0, 0] # Yaw, Pitch, Roll
             R_c2w, qvec_c2w = euler_to_quaternion(orientation)
             tvec_w2c = rx_loc
             tvec_c2w = -R_c2w.apply(tvec_w2c)
             
-            if not is_single_rx:
-                images[image_counter] = colmap_Image(image_counter, qvec_c2w, tvec_c2w, camera_id, img_filename, [], [])
-                image_counter += 1
+            image_counter += 1
             
-    print("")
-
-    if not is_single_rx:
-        save_intrinsics_text(cameras_file, cameras)
-        save_extrinsics_text(images_file, images)
-    print("Dataset generation complete.")
+    print("\nDataset generation complete.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate RF-3DGS training dataset from Sionna ray tracing.")
@@ -817,8 +772,8 @@ if __name__ == "__main__":
                         choices=["mpc", "aod", "delay", "phase"], default="mpc",
                         help="Spectrum type for --ideal mode (default: mpc)")
     parser.add_argument("--mvdr-m", type=int, default=4,
-                        help="Array size M for MVDR: uses M×M UPA (default: 4 → 4×4=16 elements)")
-    parser.add_argument("--output-dir", type=str, default=None,
+                        help="Array size M for MVDR: uses MxM UPA (default: 4 → 4×4=16 elements)")
+    parser.add_argument("--output-dir", type=str, default="localisation_frames",
                         help="Output directory (default: auto based on mode)")
     parser.add_argument("--scene", type=str, default="room_with_cube.xml",
                         help="Sionna scene XML file (default: room_with_cube.xml)")
@@ -843,8 +798,7 @@ if __name__ == "__main__":
 
     scene = load_scene(args.scene)
     
-    # 28 GHz — lower FSPL (+6.6 dB vs 60 GHz), stronger multipath, ITU-R P.2040-2 material params below
-    scene.frequency = 28e9 
+    scene.frequency = 3.5e9 
     scene.synthetic_array = True 
     wavelength = 299792458 / scene.frequency
     
@@ -862,7 +816,7 @@ if __name__ == "__main__":
         scene.rx_array = PlanarArray(num_rows=M, num_cols=M, pattern="tr38901", polarization="V",
                                     vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
         method_name = 'MVDR' if args.mvdr else 'CBF'
-        print(f"{method_name} mode: {M}×{M} tr38901 array ({M**2} elements) at 28 GHz")
+        print(f"{method_name} mode: {M}x{M} tr38901 array ({M**2} elements) at {scene.frequency/1e9} GHz")
 
     # Define Materials with Scattering (Required for Ideal MPC)
     global_scattering_coeff = 4
@@ -874,14 +828,28 @@ if __name__ == "__main__":
     # concrete: c=0.0462, d=0.7822 → σ(28) = 0.0462 * 28^0.7822 = 0.626 S/m
     # wood:     c=0.0047, d=1.0718 → σ(28) = 0.0047 * 28^1.0718 = 0.167 S/m
     # glass:    c=0.0043, d=1.1925 → σ(28) = 0.0043 * 28^1.1925 = 0.229 S/m
-    mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.626,
-                                 scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
-    mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.167,
-                                 scattering_coefficient=0.2*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
-    mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.229,
-                                 scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+    # mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.626,
+    #                              scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
+    # mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.167,
+    #                              scattering_coefficient=0.2*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
+    # mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.229,
+    #                              scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+    # mat_metal = RadioMaterial("mat_metal_scat", relative_permittivity=1, conductivity=1e7,
+    #                              scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+
+    # 3.5 GHz — Sub-6 GHz, ITU-R P.2040-2: σ = c × f_GHz^d
+    # concrete: c=0.0462, d=0.7822 → σ(3.5) = 0.0462 × 3.5^0.7822 = 0.123 S/m
+    # wood:     c=0.0047, d=1.0718 → σ(3.5) = 0.0047 × 3.5^1.0718 = 0.018 S/m
+    # glass:    c=0.0043, d=1.1925 → σ(3.5) = 0.0043 × 3.5^1.1925 = 0.019 S/m
+    # permittivity (ε = a × f^b): b≈0 for all → frequency-independent
+    mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.123,
+                             scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
+    mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.018,
+                             scattering_coefficient=0.2*global_scattering_coeff,scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
+    mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.019,
+                             scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
     mat_metal = RadioMaterial("mat_metal_scat", relative_permittivity=1, conductivity=1e7,
-                                 scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+                             scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
 
     # Add materials safely
     for mat in [mat_concrete, mat_wood, mat_glass, mat_metal]:
@@ -925,7 +893,7 @@ if __name__ == "__main__":
         z_height = 1.2 # Device height
         rx_locs = [[x, y, z_height] for x in x_range for y in y_range]
     
-    tx_pos = [3.5, 2.5, 2.7]  # Fixed TX position (ceiling center)
+    tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position (ceiling center)
     
     print(f"Starting dataset generation for {len(rx_locs)} positions...")
     # spectrum_type options:

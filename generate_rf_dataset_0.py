@@ -290,10 +290,10 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
     return img_rgb  # shape: (360*scale, 180*scale, 3)
 
 
-def plot_delay_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3, delay_max_ns=100):
+def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, kernel_sigma=3, delay_max_ns=200):
     """
     Propagation-delay spatial spectrum plotted at arrival direction — RGB encoding:
-      R = propagation delay (tau, 0–delay_max_ns ns, normalized to [0,1])
+      R = propagation delay (tau, 0-delay_max_ns ns, normalized to [0,1])
       G = path amplitude (reference channel)
       B = path amplitude (same as G — duplicated for visual balance)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
@@ -512,7 +512,7 @@ def paths_to_response(paths, time_interval=0.1):
 
 def array_manifold_vector(M, theta_grid, phi_grid):
     """
-    Compute M×M UPA array manifold vector with tr38901 element pattern.
+    Compute MxM UPA array manifold vector with tr38901 element pattern.
     Returns: complex tensor of shape (M², H, W) for scanning over (theta, phi) grid.
     Element positions follow the tutorial's λ/2 spacing convention.
     """
@@ -966,7 +966,7 @@ if __name__ == "__main__":
                         choices=["mpc", "aod", "delay", "phase"], default="mpc",
                         help="Spectrum type for --ideal mode (default: mpc)")
     parser.add_argument("--mvdr-m", type=int, default=4,
-                        help="Array size M for MVDR: uses M×M UPA (default: 4 → 4×4=16 elements)")
+                        help="Array size M for MVDR: uses MxM UPA (default: 4 → 4x4=16 elements)")
     parser.add_argument("--output-dir", type=str, default=None,
                         help="Output directory (default: auto based on mode)")
     parser.add_argument("--scene", type=str, default="room_with_cube.xml",
@@ -982,11 +982,11 @@ if __name__ == "__main__":
     scene = load_scene(args.scene)
     
     # 28 GHz — lower FSPL (+6.6 dB vs 60 GHz), stronger multipath, ITU-R P.2040-2 material params below
-    scene.frequency = 28e9 
+    scene.frequency = 3.5e9 
     scene.synthetic_array = True 
     wavelength = 299792458 / scene.frequency
     
-    # TX: single iso element — ideal spectra don't beamform, they read paths directly from ray tracer
+    # TX: single iso element — ideal spectra
     scene.tx_array = PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V",
                                 vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
 
@@ -1000,7 +1000,7 @@ if __name__ == "__main__":
         scene.rx_array = PlanarArray(num_rows=M, num_cols=M, pattern="tr38901", polarization="V",
                                     vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
         method_name = 'MVDR' if args.mvdr else 'CBF'
-        print(f"{method_name} mode: {M}×{M} tr38901 array ({M**2} elements) at 28 GHz")
+        print(f"{method_name} mode: {M}x{M} tr38901 array ({M**2} elements) at {scene.frequency/1e9} GHz")
 
     # Define Materials with Scattering (Required for Ideal MPC)
     global_scattering_coeff = 4
@@ -1012,14 +1012,29 @@ if __name__ == "__main__":
     # concrete: c=0.0462, d=0.7822 → σ(28) = 0.0462 * 28^0.7822 = 0.626 S/m
     # wood:     c=0.0047, d=1.0718 → σ(28) = 0.0047 * 28^1.0718 = 0.167 S/m
     # glass:    c=0.0043, d=1.1925 → σ(28) = 0.0043 * 28^1.1925 = 0.229 S/m
-    mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.626,
-                                 scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
-    mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.167,
-                                 scattering_coefficient=0.2*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
-    mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.229,
-                                 scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+    # mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.626,
+    #                              scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
+    # mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.167,
+    #                              scattering_coefficient=0.2*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
+    # mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.229,
+    #                              scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+    # mat_metal = RadioMaterial("mat_metal_scat", relative_permittivity=1, conductivity=1e7,
+    #                              scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+
+    # 3.5 GHz — Sub-6 GHz, ITU-R P.2040-2: σ = c × f_GHz^d
+    # concrete: c=0.0462, d=0.7822 → σ(3.5) = 0.0462 × 3.5^0.7822 = 0.123 S/m
+    # wood:     c=0.0047, d=1.0718 → σ(3.5) = 0.0047 × 3.5^1.0718 = 0.018 S/m
+    # glass:    c=0.0043, d=1.1925 → σ(3.5) = 0.0043 × 3.5^1.1925 = 0.019 S/m
+    # permittivity (ε = a × f^b): b≈0 for all → frequency-independent
+
+    mat_concrete = RadioMaterial("mat_concrete_scat", relative_permittivity=5.24, conductivity=0.123,
+                             scattering_coefficient=0.1*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=5))
+    mat_wood = RadioMaterial("mat_wood_scat", relative_permittivity=1.99, conductivity=0.018,
+                             scattering_coefficient=0.2*global_scattering_coeff,scattering_pattern=sionna.rt.DirectivePattern(alpha_r=3))
+    mat_glass = RadioMaterial("mat_glass_scat", relative_permittivity=6.27, conductivity=0.019,
+                             scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
     mat_metal = RadioMaterial("mat_metal_scat", relative_permittivity=1, conductivity=1e7,
-                                 scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
+                             scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
 
     # Add materials safely
     for mat in [mat_concrete, mat_wood, mat_glass, mat_metal]:
@@ -1044,14 +1059,12 @@ if __name__ == "__main__":
             print(f"Warning: Object {obj_name} using default material.")
 
     # --- Sampling Campaign ---
-    # 2D grid generation for the room (7m × 5m) at fixed height
-    # Safety margin: 0.3m from walls
-    x_range = np.linspace(0.3, 6.7, 10)  # 0.3m to 6.7m (10 positions)
-    y_range = np.linspace(0.3, 4.7, 7)   # 0.3m to 4.7m (7 positions)
-    z_height = 1.2 # Device height
-    rx_locs = [[x, y, z_height] for x in x_range for y in y_range]
+    x_range = np.linspace(0.3, 6.7, 12)  # 0.3m to 6.7m
+    y_range = np.linspace(0.3, 4.7, 8)   # 0.3m to 4.7m
+    z_height = [1.2, 2.5]   # 1.2m
+    rx_locs = [[x, y, z] for x in x_range for y in y_range for z in z_height]
     
-    tx_pos = [3.5, 2.5, 2.7]  # Room center (ceiling mounted)
+    tx_pos = [0.01, 2.5, 2.9]  # 3.5 2.5 2.7
     
     print(f"Starting dataset generation for {len(rx_locs)} positions...")
     # spectrum_type options:

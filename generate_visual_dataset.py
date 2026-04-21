@@ -41,10 +41,11 @@ args = parser.parse_args(script_args)
 INPUT_MODELS_DIR = os.path.join(BASE_DIR, args.meshes_dir) if not os.path.isabs(args.meshes_dir) else args.meshes_dir
 OUTPUT_DATASET_DIR = os.path.join(BASE_DIR, args.output_dir) if not os.path.isabs(args.output_dir) else args.output_dir
 
-RESOLUTION = 500  # High resolution for better quality
+RESOLUTION = 600  # High resolution for better quality
 
 # Lower frame density to reduce overlap/overfitting
 PERIMETER_FRAMES = 72
+RECTANGLE_FRAMES = 72
 # Strategy 2: moderate coverage in XY + multiple heights with a couple of rotations
 # Use all 5×3=15 grid positions to cover the room.
 GRID_DETAIL_POSITIONS = 15  # Unique XY positions
@@ -53,19 +54,21 @@ GRID_DETAIL_ROTATIONS = 2  # Different look directions per height
 GRID_DETAIL_FRAMES = GRID_DETAIL_POSITIONS * len(GRID_DETAIL_HEIGHTS) * GRID_DETAIL_ROTATIONS
 TOP_DOWN_FRAMES = 56
 FOCUS_FRAMES_PER_OBJECT = 14
-NUM_IMAGES = PERIMETER_FRAMES + GRID_DETAIL_FRAMES + TOP_DOWN_FRAMES
+CORNER_FRAMES = 56  # 8 extreme corners + (4 corners * 4 distances * 3 heights)
+EDGE_FRAMES = 64    # 4 walls * 8 pos * 2 heights
+NUM_IMAGES = PERIMETER_FRAMES + RECTANGLE_FRAMES + GRID_DETAIL_FRAMES + TOP_DOWN_FRAMES + CORNER_FRAMES + EDGE_FRAMES
 
 # Room Dimensions
-ROOM_MIN = mathutils.Vector((0.5, 0.5, 0.0))
-ROOM_MAX = mathutils.Vector((6.5, 4.5, 3.0)) 
+ROOM_MIN = mathutils.Vector((0.0, 0.0, 0.0))
+ROOM_MAX = mathutils.Vector((7.0, 5.0, 3.0)) 
 CENTER = (ROOM_MIN + ROOM_MAX) / 2
 
 MATERIAL_COLORS = {
     "walls": (0.85, 0.85, 0.85, 1),
     "floor": (0.25, 0.25, 0.25, 1),
-    "ceiling": (0.95, 0.95, 0.95, 1),
+    "ceiling": (0.55, 0.65, 0.75, 1),  # Distinct bluish-grey paint
     "door": (0.4, 0.2, 0.1, 1),
-    "window": (0.7, 0.8, 1.0, 1),
+    "window": (0.3, 0.4, 0.5, 1),  # Darker, less bright window glass
     "furniture": (0.55, 0.35, 0.15, 1),
     "furniture_center": (0.55, 0.35, 0.15, 1),
     "pillar": (0.85, 0.85, 0.85, 1),
@@ -79,10 +82,10 @@ def reset_scene():
 def setup_render_engine():
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
-    scene.cycles.samples = 96  # Higher quality with GPU acceleration
+    scene.cycles.samples = 192  # Higher quality with GPU acceleration
     scene.cycles.use_denoising = True  # Re-enabled for cleaner images
     scene.cycles.denoiser = 'OPENIMAGEDENOISE'  # Fast denoiser
-    scene.cycles.max_bounces = 3  # Increased for better lighting
+    scene.cycles.max_bounces = 4  # Increased for better lighting / realism
     
     # Enable GPU rendering (CRITICAL for speed)
     scene.cycles.device = 'GPU'
@@ -210,24 +213,29 @@ def setup_lighting():
     else:
         node_tree.links.new(bg.outputs['Background'], output.inputs['Surface'])
 
+    # Make background fill brighter and perfectly even to prevent dark corners
     bg.inputs['Color'].default_value = (1.0, 1.0, 1.0, 1.0)
-    bg.inputs['Strength'].default_value = 0.72  # bright room fill, not pure overexposure
+    bg.inputs['Strength'].default_value = 1.8  # Increased slightly for more overall brightness
 
-
-    # 2. Sun (Key)
+    # 2. Sun (Key) - Reduce drastically to prevent hotspots on glossy walls, mostly acting as gentle bounce
     bpy.ops.object.light_add(type='SUN', location=(0, 0, 5))
     sun = bpy.context.object
-    sun.data.energy = 2.5
-    sun.data.angle = 0.5 
+    sun.data.energy = 0.5
+    sun.data.angle = 1.5  # softer shadows
     sun.rotation_euler = (math.radians(45), math.radians(15), 0)
 
-    # 3. Ceiling Panel
-    bpy.ops.object.light_add(type='AREA', location=(3.5, 2.5, 2.9)) 
+    # 3. Central Room-Sized Softbox
+    # Placed precisely at the center of the ceiling to evenly wash the walls without round hotspots.
+    # Exact size of the room (6m x 4m) to ensure uniform coverage all the way into the wall edges.
+    # Moved Z almost flush with the ceiling (2.99) so the very top edges are fully lit.
+    bpy.ops.object.light_add(type='AREA', location=(CENTER.x, CENTER.y, 2.99)) 
     ceiling_light = bpy.context.object
     ceiling_light.name = "Ceiling_Panel"
-    ceiling_light.data.energy = 250.0
-    ceiling_light.data.size = 4.0     
-    ceiling_light.data.color = (1.0, 0.98, 0.9) # RGB only
+    ceiling_light.data.shape = 'RECTANGLE'
+    ceiling_light.data.size = 6.2  # Slightly wider to push light firmly into top corners
+    ceiling_light.data.size_y = 4.2  # Slightly deeper to push light firmly into top corners
+    ceiling_light.data.energy = 130.0  # Increased slightly for more overall brightness   
+    ceiling_light.data.color = (1.0, 0.98, 0.95)
 
 def import_models():
     """Import PLY models and assign realistic materials."""
@@ -278,10 +286,9 @@ def import_models():
         
         mat = create_high_feature_material(f"Mat_{obj.name}", color, is_glass=is_glass, is_metal=is_metal)
         
-        if obj.data.materials:
-            obj.data.materials[0] = mat
-        else:
-            obj.data.materials.append(mat)
+        # Clear all existing material slots and assign the uniform material to the entire object
+        obj.data.materials.clear()
+        obj.data.materials.append(mat)
         
         print(f"✓ Imported: {obj.name} (glass={is_glass}, metal={is_metal})")
 
@@ -468,12 +475,27 @@ def build_train_test_split(frames, test_ratio, split_mode, test_block_size, spat
 
     test_ratio = max(0.01, min(float(test_ratio), 0.5))
 
+    # Separate out frames that should NEVER be tested on (like corners) 
+    # to avoid blowing up the test PSNR with texture-less close-ups.
+    eval_frames = []
+    support_frames = []
+    eval_indices = []
+    for i, f in enumerate(frames):
+        if f.get("strategy") in ["corner_focus", "wall_edge"]:
+            support_frames.append((i, f))
+        else:
+            eval_frames.append(f)
+            eval_indices.append(i)
+
     if split_mode == 'periodic':
-        test_indices = _split_periodic(frames, test_ratio)
+        sub_test_indices = _split_periodic(eval_frames, test_ratio)
     elif split_mode == 'block':
-        test_indices = _split_block(frames, test_ratio, max(1, int(test_block_size)), split_seed)
+        sub_test_indices = _split_block(eval_frames, test_ratio, max(1, int(test_block_size)), split_seed)
     else:
-        test_indices = _split_spatial(frames, test_ratio, float(spatial_min_dist), split_seed)
+        sub_test_indices = _split_spatial(eval_frames, test_ratio, float(spatial_min_dist), split_seed)
+
+    # Re-map sub_test_indices back to original indices
+    test_indices = {eval_indices[i] for i in sub_test_indices}
 
     train_frames = [_sanitize_frame(f) for i, f in enumerate(frames) if i not in test_indices]
     test_frames = [_sanitize_frame(f) for i, f in enumerate(frames) if i in test_indices]
@@ -504,22 +526,24 @@ def main():
     cam = bpy.context.object
     bpy.context.scene.camera = cam
     cam.data.lens = 20 # 20mm is good for room scale
+    cam.data.clip_start = 0.01 # Prevent nearest walls/corners from clipping through the near-plane
+
     
     frames = []
     
     print("\nGenerating training dataset...")
     
-    # === STRATEGY 1: PERIMETER WALK ===
-    # Walk around the walls, looking at the center
-    print(f"\nStrategy 1: Perimeter Walk ({PERIMETER_FRAMES} frames)")
+    # === STRATEGY 1: INNER OVAL WALK ===
+    # Walk around the inside oval, looking at the center
+    print(f"\nStrategy 1: Inner Oval Walk ({PERIMETER_FRAMES} frames)")
     t_s1 = time.time()
     for i in range(PERIMETER_FRAMES):
         t = i / float(PERIMETER_FRAMES)
         angle = t * 2 * math.pi
         
         # Oval path slightly smaller than room limits
-        radius_x = (ROOM_MAX.x - ROOM_MIN.x) * 0.35  # Reduced from 0.4 for safety
-        radius_y = (ROOM_MAX.y - ROOM_MIN.y) * 0.35
+        radius_x = (ROOM_MAX.x - ROOM_MIN.x) * 0.42
+        radius_y = (ROOM_MAX.y - ROOM_MIN.y) * 0.42
         
         x = CENTER.x + math.cos(angle) * radius_x
         y = CENTER.y + math.sin(angle) * radius_y
@@ -531,8 +555,42 @@ def main():
         look_target = CENTER + mathutils.Vector((math.cos(angle * 2.5) * 0.7, math.sin(angle * 2.5) * 0.7, -0.5))
         look_at(cam, look_target)
         
-        render_frame(i, cam, images_dir, frames, strategy="perimeter")
+        render_frame(i, cam, images_dir, frames, strategy="inner_oval")
     print(f"\nStrategy 1 completed: {time.time() - t_s1:.2f}s")
+    
+    # === STRATEGY 1B: OUTER RECTANGLE WALK ===
+    # Walk along the outer rectangular bounds, very close to the walls
+    print(f"\nStrategy 1b: Outer Rectangle Walk ({RECTANGLE_FRAMES} frames)")
+    t_s1b = time.time()
+    rm_margin = 0.05
+    rect_min_x, rect_max_x = ROOM_MIN.x + rm_margin, ROOM_MAX.x - rm_margin
+    rect_min_y, rect_max_y = ROOM_MIN.y + rm_margin, ROOM_MAX.y - rm_margin
+    rect_w = rect_max_x - rect_min_x
+    rect_h = rect_max_y - rect_min_y
+    perimeter_len = 2 * (rect_w + rect_h)
+
+    for i in range(RECTANGLE_FRAMES):
+        t = i / float(RECTANGLE_FRAMES)
+        d = t * perimeter_len
+        
+        if d < rect_w:
+            x, y = rect_min_x + d, rect_min_y
+        elif d < rect_w + rect_h:
+            x, y = rect_max_x, rect_min_y + (d - rect_w)
+        elif d < 2 * rect_w + rect_h:
+            x, y = rect_max_x - (d - (rect_w + rect_h)), rect_max_y
+        else:
+            x, y = rect_min_x, rect_max_y - (d - (2 * rect_w + rect_h))
+            
+        cam.location = clamp_to_room((x, y, 1.6), margin=rm_margin)
+        
+        # Look at a point slightly offset from center to create parallax
+        angle = t * 2 * math.pi
+        look_target = CENTER + mathutils.Vector((math.cos(angle * 2.5) * 0.7, math.sin(angle * 2.5) * 0.7, -0.5))
+        look_at(cam, look_target)
+        
+        render_frame(PERIMETER_FRAMES + i, cam, images_dir, frames, strategy="rectangle")
+    print(f"\nStrategy 1b completed: {time.time() - t_s1b:.2f}s")
 
     # === STRATEGY 2: LOW "DETAIL" PASS ===
     # Grid-based sampling at low height (human/robot perspective)
@@ -542,7 +600,7 @@ def main():
     # but only pick the first GRID_DETAIL_POSITIONS of them to keep the total frame count lower.
     grid_x = 5
     grid_y = 3
-    strategy2_start = PERIMETER_FRAMES
+    strategy2_start = PERIMETER_FRAMES + RECTANGLE_FRAMES
     
     for pos_ix in range(GRID_DETAIL_POSITIONS):
         # Deterministic grid positions (fewer XY points so we can take multiple heights)
@@ -583,7 +641,7 @@ def main():
     # High up, looking down. Fills floor holes.
     print(f"\n\nStrategy 3: Top-Down Coverage ({TOP_DOWN_FRAMES} frames)")
     t_s3 = time.time()
-    strategy3_start = PERIMETER_FRAMES + GRID_DETAIL_FRAMES
+    strategy3_start = PERIMETER_FRAMES + RECTANGLE_FRAMES + GRID_DETAIL_FRAMES
     for i in range(TOP_DOWN_FRAMES):
         # Zig Zag pattern
         t = i / float(TOP_DOWN_FRAMES)
@@ -615,7 +673,7 @@ def main():
     print(f"Found {len(target_objects)} objects to orbit")
             
     # 2. Generate orbits for each found object
-    frame_counter = PERIMETER_FRAMES + GRID_DETAIL_FRAMES + TOP_DOWN_FRAMES
+    frame_counter = PERIMETER_FRAMES + RECTANGLE_FRAMES + GRID_DETAIL_FRAMES + TOP_DOWN_FRAMES
     frames_per_object = FOCUS_FRAMES_PER_OBJECT
     
     for obj in target_objects:
@@ -628,6 +686,118 @@ def main():
         )
         frame_counter += frames_per_object
     print(f"Strategy 4 completed: {time.time() - t_s4:.2f}s")
+
+    # === STRATEGY 5: CORNER FOCUS ===
+    # Directly look into the 4 room corners from varied distances and heights to eliminate bending artifacts.
+    # ALSO place camera exactly AT the 8 room corners, looking strictly inside.
+    print(f"\n\nStrategy 5: Corner Focus ({CORNER_FRAMES} frames)")
+    t_s5 = time.time()
+    
+    # 8 Physical corners of the room
+    # We use a very minimum margin so the camera body doesn't clip through the wall
+    cmargin = 0.01
+    corners_8 = [
+        # Bottom 4 corners (near floor)
+        (ROOM_MIN.x + cmargin, ROOM_MIN.y + cmargin, ROOM_MIN.z + cmargin + 0.1),
+        (ROOM_MIN.x + cmargin, ROOM_MAX.y - cmargin, ROOM_MIN.z + cmargin + 0.1),
+        (ROOM_MAX.x - cmargin, ROOM_MIN.y + cmargin, ROOM_MIN.z + cmargin + 0.1),
+        (ROOM_MAX.x - cmargin, ROOM_MAX.y - cmargin, ROOM_MIN.z + cmargin + 0.1),
+        # Top 4 corners (near ceiling)
+        (ROOM_MIN.x + cmargin, ROOM_MIN.y + cmargin, ROOM_MAX.z - cmargin),
+        (ROOM_MIN.x + cmargin, ROOM_MAX.y - cmargin, ROOM_MAX.z - cmargin),
+        (ROOM_MAX.x - cmargin, ROOM_MIN.y + cmargin, ROOM_MAX.z - cmargin),
+        (ROOM_MAX.x - cmargin, ROOM_MAX.y - cmargin, ROOM_MAX.z - cmargin)
+    ]
+    
+    # Capture from the 8 extreme corners looking at the center
+    for cx, cy, cz in corners_8:
+        cam.location = (cx, cy, cz)
+        
+        # Look exactly at the center of the room, or slightly varied
+        look_target = mathutils.Vector((CENTER.x, CENTER.y, CENTER.z))
+        look_at(cam, look_target)
+        
+        render_frame(frame_counter, cam, images_dir, frames, strategy="corner_focus")
+        frame_counter += 1
+
+    # Original corner focus logic: looking AT the corners
+    corners = [
+        (ROOM_MIN.x - 0.2, ROOM_MIN.y - 0.2),  # Bottom-Left (slightly pushed outwards for actual corner)
+        (ROOM_MIN.x - 0.2, ROOM_MAX.y + 0.2),  # Top-Left
+        (ROOM_MAX.x + 0.2, ROOM_MIN.y - 0.2),  # Bottom-Right
+        (ROOM_MAX.x + 0.2, ROOM_MAX.y + 0.2)   # Top-Right
+    ]
+    corner_distances = [1.0, 1.6, 2.2, 2.8]
+    corner_heights = [0.8, 1.3, 1.7]  # lowered max height to prevent seeing over walls into the black void
+
+    for cx, cy in corners:
+        # Vector pointing from corner to room center
+        dir_x = CENTER.x - cx
+        dir_y = CENTER.y - cy
+        length = math.sqrt(dir_x**2 + dir_y**2)
+        dir_x /= length
+        dir_y /= length
+
+        for dist in corner_distances:
+            for z in corner_heights:
+                cam_x = cx + dir_x * dist
+                cam_y = cy + dir_y * dist
+                
+                cam.location = clamp_to_room((cam_x, cam_y, z), margin=0.1)
+                
+                # Look exactly at the targeted corner
+                look_target = mathutils.Vector((cx, cy, z - 0.2))
+                look_at(cam, look_target)
+                
+                render_frame(frame_counter, cam, images_dir, frames, strategy="corner_focus")
+                frame_counter += 1
+                
+    print(f"Strategy 5 (Corners) completed: {time.time() - t_s5:.2f}s")
+    
+    # === STRATEGY 6: WALL EDGES SWEEP ===
+    # Slide along the walls very very closely looking toward the corners
+    # This prevents floaters sticking to the flat walls near the corners.
+    print(f"\n\nStrategy 6: Wall Edges Sweep ({EDGE_FRAMES} frames)")
+    t_s6 = time.time()
+    
+    # 4 walls, defined by their corner connections (clockwise)
+    wall_segments = [
+        (corners[0], corners[2]), # Bottom edge (Min Y)
+        (corners[2], corners[3]), # Right edge (Max X)
+        (corners[3], corners[1]), # Top edge (Max Y)
+        (corners[1], corners[0])  # Left edge (Min X)
+    ]
+    
+    edge_z_heights = [1.4, 2.5]
+    points_per_edge = 8 # 8 ponts * 4 walls * 2 heights = 64 frames
+    
+    for start_c, end_c in wall_segments:
+        for z in edge_z_heights:
+            for p in range(points_per_edge):
+                # interpolate along the wall
+                t = p / float(points_per_edge)
+                wx = start_c[0] + (end_c[0] - start_c[0]) * t
+                wy = start_c[1] + (end_c[1] - start_c[1]) * t
+                
+                # Figure out the direction towards the room center to step back 15cm from the wall
+                dir_x = CENTER.x - wx
+                dir_y = CENTER.y - wy
+                length = math.sqrt(dir_x**2 + dir_y**2)
+                
+                cam_x = wx + (dir_x / length) * 0.15
+                cam_y = wy + (dir_y / length) * 0.15
+                
+                cam.location = clamp_to_room((cam_x, cam_y, z), margin=0.1)
+                
+                # Look towards the upcoming corner of this wall segment
+                # Look slightly downward 
+                look_target = mathutils.Vector((end_c[0], end_c[1], z - 0.2))
+                look_at(cam, look_target)
+                
+                render_frame(frame_counter, cam, images_dir, frames, strategy="wall_edge")
+                frame_counter += 1
+                
+    print(f"Strategy 6 (Wall Edges) completed: {time.time() - t_s6:.2f}s")
 
     # Save JSON in Blender/NeRF format split into train/test
     # 2DGS expects transforms_train.json and transforms_test.json

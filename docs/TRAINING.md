@@ -102,28 +102,7 @@ Enable evaluation mode
 -   Randomly initialize ~5,000 Gaussians in scene bounds
 -   Or initialize from SfM point cloud (if available)
 
-**Optimization Loop (Iterations 1-30,000)**:
-
-Each iteration:
-
-1.  **Sample Training View**: Randomly select an image from training set
-    
-2.  **Rasterize Gaussians**: Project 3D Gaussians to 2D image using differentiable splatting
-    
-3.  **Compute Loss**:
-    
-    ```python
-    loss = (1 - λ) * L1_loss + λ * SSIM_loss# λ = 0.2 (20% SSIM, 80% L1)
-    ```
-    
-4.  **Backpropagate**: Update Gaussian parameters using Adam optimizer
-    
-5.  **Adaptive Densification** (every 100 iterations until iteration 15,000):
-    
-    -   **Clone**: Duplicate Gaussians in high-gradient regions (under-reconstructed areas)
-    -   **Split**: Split large Gaussians that cover too much area
-    -   **Prune**: Remove low-opacity Gaussians (opacity < 0.005)
-6.  **Opacity Reset** (every 3,000 iterations):
+ **Opacity Reset** (every 3,000 iterations):
     
     -   Reset all opacities to prevent premature convergence
 
@@ -183,7 +162,7 @@ Fine-tune the visual model to learn RF propagation patterns from RF heatmaps whi
 ### Command
 
 ```bash
-python train.py   -s /home/ved/Ved/Project_1/dataset_ideal_mpc   -m output/rf_model   --images spectrum   --start_checkpoint output/visual_model/chkpnt30000.pth   --iterations 40000
+python train.py   -s /home/ved/Ved/Project_1/dataset_ideal_mpc   -m output/rf_model   --images spectrum   --start_checkpoint output/visual_model/chkpnt30000.pth   --iterations 40000  --save_iterations 40000 --test_iterations 40000 --eval
 ```
 
 ### Key Parameters
@@ -426,20 +405,6 @@ from plyfile import PlyDataply = PlyData.read("point_cloud.ply")xyz = np.stack([
 2.  **Diverse viewpoints**: Cover all angles, heights
 3.  **Consistent lighting**: Use HDRI or uniform lighting
 4.  **Sharp images**: No motion blur or defocus
-
-### Training Strategy
-
-1.  **Start with visual**: Always train Stage 1 first
-2.  **Monitor metrics**: Track PSNR, SSIM, loss curves
-3.  **Save checkpoints**: Enable `--save_iterations` frequently
-4.  **Evaluate regularly**: Use `--test_iterations` to catch issues early
-
-### Fine-tuning Strategy
-
-1.  **Lower learning rates**: 10x-100x smaller than Stage 1
-2.  **Shorter training**: 10K iterations usually sufficient
-3.  **Frozen geometry**: Keep positions/scales mostly fixed
-4.  **Match dataset alignment**: Ensure RF and visual poses are synchronized
 
 ---
 

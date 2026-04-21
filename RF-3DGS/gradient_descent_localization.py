@@ -14,6 +14,7 @@ import numpy as np
 import subprocess
 import re
 import math
+import time
 from argparse import ArgumentParser
 from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
@@ -26,6 +27,7 @@ from scene import Scene
 from utils.graphics_utils import getWorld2View2, getProjectionMatrix
 from utils.loss_utils import ssim
 from utils.general_utils import safe_state
+from lpipsPyTorch import LPIPS
 
 
 class CustomCam:
@@ -65,17 +67,8 @@ def pose_to_matrix(position, yaw_rad):
     # Sionna coordinate transformation
     pitch, roll = torch.tensor(0.0, device="cuda"), torch.tensor(0.0, device="cuda")
     
-    # PyTorch based Euler to Rotation matrix
-    # R_posz2posx = R.from_euler('ZYX', [-np.pi/2, 0.0, -np.pi/2])
-    # R_posx2array = R.from_euler('ZYX', [yaw, pitch, roll])
-    
-    # Simple workaround since SciPy R doesn't support autograd:
     cy = torch.cos(yaw)
     sy = torch.sin(yaw)
-    cp = torch.cos(pitch)
-    sp = torch.sin(pitch)
-    cr = torch.cos(roll)
-    sr = torch.sin(roll)
     
     # R_ZYX = R_z(yaw) * R_y(pitch) * R_x(roll)
     R_yaw = torch.stack([
@@ -98,7 +91,7 @@ def pose_to_matrix(position, yaw_rad):
     P_world = torch.stack([tx, ty, tz])
     T_w2c = -torch.matmul(R_w2c, P_world)
     
-    return R_w2c.detach().cpu().numpy(), T_w2c.detach().cpu().numpy() # this breaks gradients
+    return R_w2c, T_w2c
 
 
 def run_grid_search(target_image, model_path, iteration):
@@ -117,44 +110,42 @@ def run_grid_search(target_image, model_path, iteration):
         "--iteration", str(iteration)
     ]
     
-    # Instead of fighting python's stdout pipe buffering on nested processes,
-    # we just run the command natively in the shell with `tee` to show progress
-    # completely properly, and write it to a temp file to parse the answer.
-    tmp_out = "temp_grid_output.txt"
-        
-    cmd_str = f'"{sys.executable}" grid_search_localization.py --target_image "{target_image}" --model_path "{model_path}" --iteration {iteration}'
+    # Instead of writing to a temp file, we read from stdout pipe directly line by line.
+    cmd_str = [sys.executable, "grid_search_localization.py", "--target_image", target_image, "--model_path", model_path, "--iteration", str(iteration)]
     
     process = subprocess.Popen(
-        f"{cmd_str} 2>&1 | tee {tmp_out}",
-        shell=True,
-        executable="/bin/bash"
+        cmd_str,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
     )
-    process.wait()
     
-    with open(tmp_out, "r") as f:
-        output_lines = f.readlines()
+    output_lines = []
+    for line in process.stdout:
+        print(line, end="")
+        output_lines.append(line)
         
-    # Clean up right after
-    if os.path.exists(tmp_out):
-        os.remove(tmp_out)
-        
-    candidates = []
-    for line in output_lines:
-        if "Pose_0" in line and "Position:" in line:
-            pos_match = re.search(r'X:\s*([\d.-]+).*Y:\s*([\d.-]+).*Z:\s*([\d.-]+)', line)
-            yaw_match = re.search(r'Rotation/Yaw:\s*([\d.-]+)°', line)
+    process.wait()
             
-            if pos_match and yaw_match:
-                tx, ty, tz = float(pos_match.group(1)), float(pos_match.group(2)), float(pos_match.group(3))
-                yaw_deg = float(yaw_match.group(1))
-                candidates.insert(0, ((tx, ty, tz), yaw_deg))
-                
-        elif "Pos (" in line and "Yaw:" in line:
-            pos_match = re.search(r'Pos \(([\d.-]+),\s*([\d.-]+),\s*([\d.-]+)\)\s+Yaw:\s*([\d.-]+)°', line)
-            if pos_match:
-                tx, ty, tz = float(pos_match.group(1)), float(pos_match.group(2)), float(pos_match.group(3))
-                yaw_deg = float(pos_match.group(4))
-                candidates.append(((tx, ty, tz), yaw_deg))
+    # The actual top matches will be populated from the final list or from the Best coarse pose print
+    # Let's cleanly grab the new "Top 5 Matches" output
+    
+    candidates = []
+    in_top_5 = False
+    for line in output_lines:
+        if "Top 5 Matches (Full Eval):" in line or "Top 5 Matches:" in line:
+            in_top_5 = True
+            continue
+        elif in_top_5:
+            if "Pos (" in line and "Yaw:" in line:
+                pos_match = re.search(r'Pos \(([\d.-]+),\s*([\d.-]+),\s*([\d.-]+)\)\s+Yaw:\s*([\d.-]+)°', line)
+                if pos_match:
+                    tx, ty, tz = float(pos_match.group(1)), float(pos_match.group(2)), float(pos_match.group(3))
+                    yaw_deg = float(pos_match.group(4))
+                    candidates.append(((tx, ty, tz), yaw_deg))
+            elif line.strip() == "" or "BEST COARSE POSE" in line:
+                in_top_5 = False
                 
     if len(candidates) == 0:
         raise RuntimeError(f"Could not parse grid search output. Unexpected format.")
@@ -181,10 +172,11 @@ def load_target_image(target_image_path, width, height):
     return img_tensor
 
 
-def compute_loss(rendered, target, lambda_weight=0.7):
-    l1 = torch.abs(target - rendered).mean()
+def compute_loss(rendered, target, lpips_net, lambda_weight=0.6):
+    lpips_val = lpips_net(rendered, target).mean()
     ssim_value = ssim(rendered, target, window_size=11, size_average=True)
-    loss = (1.0 - lambda_weight) * l1 + lambda_weight * (1.0 - ssim_value)
+    # L1 replaced with LPIPS. 0.4 * LPIPS + 0.6 * SSIM (in loss form: 1 - SSIM)
+    loss = (1.0 - lambda_weight) * lpips_val + lambda_weight * (1.0 - ssim_value)
     
     return loss
 
@@ -223,121 +215,123 @@ def extract_gt_from_filename(filename):
 
 def iterative_optimization_refinement(gaussians, pipeline, background, target_image_tensor, 
                                  coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=100, 
-                                 lambda_weight=0.8, fovx=0.8, fovy=0.8, width=600, height=600):
+                                 lambda_weight=0.6, fovx=0.8, fovy=0.8, width=600, height=600,
+                                 learning_rate=0.01):
                                  
     print("\n" + "="*60)
-    print("STEP 4: Deep Verification & Iterative Direction-Based Optimization")
+    print("STEP 4: Optimization Refinement")
     print("="*60 + "\n")
     
     loss_history = []
     
-    def evaluate_loss_at(x, y, z, yaw_deg):
-        yaw = np.radians(yaw_deg)
-        cy, sy = np.cos(yaw), np.sin(yaw)
+    best_candidate_post_phase1_pos, best_candidate_post_phase1_yaw = coarse_candidates[0]
+    
+    pos_tensor = torch.tensor(best_candidate_post_phase1_pos, dtype=torch.float32, device="cuda")
+    x = torch.nn.Parameter(pos_tensor[0])
+    y = torch.nn.Parameter(pos_tensor[1])
+    z = torch.nn.Parameter(pos_tensor[2])
+    
+    optimizer = torch.optim.Adam([
+        {'params': x, 'lr': learning_rate},
+        {'params': y, 'lr': learning_rate},
+        {'params': z, 'lr': learning_rate}
+    ])
+    
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_iterations)
+    
+    final_target_yaw = best_candidate_post_phase1_yaw
+    yaw_tensor = torch.tensor(np.radians(final_target_yaw), dtype=torch.float32, device="cuda")
+    
+    lpips_net = LPIPS(net_type='alex').cuda()
+    
+    # Pre-compute static matrices outside the evaluation loop for significant speedup
+    cy = torch.cos(yaw_tensor)
+    sy = torch.sin(yaw_tensor)
+    R_yaw = torch.tensor([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]], device="cuda")
+    R_posz2posx = torch.tensor([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]], device="cuda")
+    R_w2c_static = torch.inverse(torch.matmul(R_yaw, R_posz2posx))
+    R_w2c_T = R_w2c_static.transpose(0, 1).contiguous()
+    
+    znear, zfar = 0.01, 100.0
+    proj_mat = getProjectionMatrix(znear=znear, zfar=zfar, fovX=fovx, fovY=fovy)
+    if isinstance(proj_mat, torch.Tensor):
+        projection_matrix = proj_mat.clone().detach().to("cuda").transpose(0, 1).contiguous()
+    else:
+        projection_matrix = torch.tensor(proj_mat, device="cuda").transpose(0, 1).contiguous()
+
+    base_wv_trans = torch.zeros((4, 4), device="cuda")
+    base_wv_trans[:3, :3] = R_w2c_T
+    base_wv_trans[3, 3] = 1.0
+
+    class DiffCam: pass
+    shared_cam = DiffCam()
+    shared_cam.image_width, shared_cam.image_height = width, height
+    shared_cam.FoVy, shared_cam.FoVx = fovy, fovx
+    shared_cam.znear, shared_cam.zfar = znear, zfar
+    
+    def evaluate_loss_fw(x_val, y_val, z_val):
+        P_world = torch.stack([x_val, y_val, z_val])
+        T_w2c = -torch.matmul(R_w2c_static, P_world)
         
-        R_yaw = torch.tensor([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]], dtype=torch.float32, device="cuda")
-        R_posz2posx = torch.tensor([[0.0, 0.0, 1.0], [-1.0, 0.0, 0.0], [0.0, -1.0, 0.0]], dtype=torch.float32, device="cuda")
-        R_w2c = torch.inverse(torch.matmul(R_yaw, R_posz2posx))
-        P_world = torch.tensor([x, y, z], dtype=torch.float32, device="cuda")
-        T_w2c = -torch.matmul(R_w2c, P_world)
-        
-        wv_trans = torch.zeros((4, 4), device="cuda")
-        wv_trans[:3, :3] = R_w2c.transpose(0, 1)
+        wv_trans = base_wv_trans.clone()
         wv_trans[3, :3] = T_w2c
-        wv_trans[3, 3] = 1.0
         
-        znear, zfar = 0.01, 100.0
-        proj_mat = getProjectionMatrix(znear=znear, zfar=zfar, fovX=fovx, fovY=fovy)
-        if isinstance(proj_mat, torch.Tensor):
-            projection_matrix = proj_mat.clone().detach().to("cuda").transpose(0, 1)
-        else:
-            projection_matrix = torch.tensor(proj_mat, device="cuda").transpose(0, 1)
-        
-        full_proj_transform = torch.matmul(wv_trans, projection_matrix)
-        camera_center = torch.inverse(wv_trans)[3, :3]
-        
-        class DiffCam: pass
-        cam = DiffCam()
-        cam.image_width, cam.image_height = width, height
-        cam.FoVy, cam.FoVx = fovy, fovx
-        cam.znear, cam.zfar = znear, zfar
-        cam.world_view_transform = wv_trans
-        cam.full_proj_transform = full_proj_transform
-        cam.camera_center = camera_center
+        shared_cam.world_view_transform = wv_trans
+        shared_cam.full_proj_transform = torch.matmul(wv_trans, projection_matrix)
+        shared_cam.camera_center = P_world
         
         with torch.no_grad():
-            rend = render(cam, gaussians, pipeline, background)["render"]
-            loss = compute_loss(rend.unsqueeze(0), target_image_tensor, lambda_weight=lambda_weight)
-        
-        return loss.item()
+            rend = render(shared_cam, gaussians, pipeline, background)["render"]
+            loss = compute_loss(rend.unsqueeze(0), target_image_tensor, lpips_net, lambda_weight=lambda_weight)
+        return loss
 
-    MAX_DIRECTION_CHECKS = 7
-    MIN_CONSECUTIVE_SAME_YAW = 5
-
-    print(f"--- Phase 1: Exploring Best Angle and Error Basin for each Candidate ---")
+    print(f"\n--- Full Rx Position Optimization (Fixed at Dir {final_target_yaw}°) ---")
     
-    best_candidate_post_phase1_loss = float('inf')
-    best_candidate_post_phase1_pos = None
-    best_candidate_post_phase1_yaw = None
-    
-    for i, (pos, yaw) in enumerate(coarse_candidates):
-        print(f"\n  [Candidate {i+1}]: Initial Coords={pos}, Yaw={yaw}°")
-        current_pos = np.array(pos)
-        best_yaw_history = []
-        best_loss = float('inf')
-        best_yaw = yaw
-        
-        for step in range(MAX_DIRECTION_CHECKS):
-            best_loss = float('inf')
-            best_yaw = 0
-            
-            for y in yaws_to_test:
-                l = evaluate_loss_at(current_pos[0], current_pos[1], current_pos[2], y)
-                if l < best_loss:
-                    best_loss = l
-                    best_yaw = y
-                    
-            best_yaw_history.append(best_yaw)
-            
-            # Check if stabilized
-            if len(best_yaw_history) >= MIN_CONSECUTIVE_SAME_YAW and len(set(best_yaw_history[-MIN_CONSECUTIVE_SAME_YAW:])) == 1:
-                break
-                
-            def step_objective(p):
-                return evaluate_loss_at(p[0], p[1], p[2], best_yaw)
-                
-            res = minimize(step_objective, current_pos, method='Nelder-Mead', options={'maxiter': 5, 'maxfev': 15})
-            current_pos = res.x
-            
-        print(f"    -> After basin exploration: Coords=[{current_pos[0]:.4f}, {current_pos[1]:.4f}, {current_pos[2]:.4f}], Best Yaw={best_yaw}°, Deep Loss={best_loss:.6f}")
-        
-        if best_loss < best_candidate_post_phase1_loss:
-            best_candidate_post_phase1_loss = best_loss
-            best_candidate_post_phase1_pos = current_pos
-            best_candidate_post_phase1_yaw = best_yaw
-
-    print(f"\n  --> WINNER CANDIDATE FOR PHASE 2: Coords=[{best_candidate_post_phase1_pos[0]:.4f}, {best_candidate_post_phase1_pos[1]:.4f}, {best_candidate_post_phase1_pos[2]:.4f}], Yaw={best_candidate_post_phase1_yaw}°, Loss={best_candidate_post_phase1_loss:.6f}")
-
-    current_pos = np.array(best_candidate_post_phase1_pos)
-    final_target_yaw = best_candidate_post_phase1_yaw
-
-    print(f"\n--- Phase 2: Full Rx Position Optimization (Fixed at Dir {final_target_yaw}°) ---")
+    num_iterations = min(num_iterations, 100)
     pbar = tqdm(total=num_iterations, desc="Optimization")
-    it_count = [0]
     
-    def final_objective(pos):
-        l = evaluate_loss_at(pos[0], pos[1], pos[2], final_target_yaw)
-        loss_history.append(l)
-        it_count[0] += 1
-        if it_count[0] <= num_iterations:
-            pbar.update(1)
-            pbar.set_postfix({"loss": f"{l:.4f}", "x": f"{pos[0]:.3f}", "y": f"{pos[1]:.3f}", "z": f"{pos[2]:.3f}"})
-        return l
+    eps = 1e-3
+    
+    best_loss = float('inf')
+    patience = 5
+    patience_counter = 0
+    min_delta = 1e-4
+
+    for it in range(num_iterations):
+        optimizer.zero_grad()
         
-    final_res = minimize(final_objective, current_pos, method='Nelder-Mead', options={'maxiter': num_iterations, 'maxfev': num_iterations})
+        l_center = evaluate_loss_fw(x, y, z)
+        
+        l_x_pos = evaluate_loss_fw(x + eps, y, z)
+        l_y_pos = evaluate_loss_fw(x, y + eps, z)
+        l_z_pos = evaluate_loss_fw(x, y, z + eps)
+        
+        x.grad = (l_x_pos - l_center) / eps
+        y.grad = (l_y_pos - l_center) / eps
+        z.grad = (l_z_pos - l_center) / eps
+        
+        optimizer.step()
+        scheduler.step()
+        
+        l_item = l_center.item()
+        loss_history.append(l_item)
+        
+        pbar.update(1)
+        pbar.set_postfix({"loss": f"{l_item:.4f}", "x": f"{x.item():.3f}", "y": f"{y.item():.3f}", "z": f"{z.item():.3f}"})
+        
+        if l_item < best_loss - min_delta:
+            best_loss = l_item
+            patience_counter = 0
+        else:
+            patience_counter += 1
+            
+        if patience_counter >= patience:
+            print(f"\nEarly stopping triggered at iteration {it+1}: loss hasn't decreased significantly in {patience} steps.")
+            break
+        
     pbar.close()
     
-    optimized_position = final_res.x
+    optimized_position = np.array([x.item(), y.item(), z.item()])
     
     return optimized_position, final_target_yaw, loss_history
 
@@ -350,6 +344,10 @@ def main():
     parser.add_argument("--num_iterations", type=int, default=1000)
     parser.add_argument("--learning_rate", type=float, default=0.01)
     parser.add_argument("--lambda_weight", type=float, default=0.6)
+    parser.add_argument("--coarse_x", type=float, default=None, help="Optional coarse X position")
+    parser.add_argument("--coarse_y", type=float, default=None, help="Optional coarse Y position")
+    parser.add_argument("--coarse_z", type=float, default=None, help="Optional coarse Z position")
+    parser.add_argument("--coarse_yaw", type=float, default=0.0, help="Optional coarse Yaw (degrees)")
     
     # In some forks explicit iteration is added, but ModelParams usually has it or pipeline.
     # We will use parse_known_args
@@ -364,14 +362,29 @@ def main():
     if not os.path.exists(args.target_image):
         raise FileNotFoundError(f"Target image not found: {args.target_image}")
     
-    coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration)
+    coarse_x = getattr(args, 'coarse_x', None)
+    coarse_y = getattr(args, 'coarse_y', None)
+    coarse_z = getattr(args, 'coarse_z', None)
+    coarse_yaw = getattr(args, 'coarse_yaw', 0.0)
+
+    if coarse_x is not None and coarse_y is not None and coarse_z is not None:
+        print("\n" + "="*60)
+        print("STEP 1 & 2: Using provided coarse pose. Skipping grid search.")
+        print("="*60)
+        coarse_candidates = [((coarse_x, coarse_y, coarse_z), coarse_yaw)]
+    else:
+        coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration)
     
     print("\n" + "="*60)
     print("STEP 3: Loading RF-3DGS Scene and Model for Gradient Descent...")
     print("="*60)
-    
+    print("\nLoading Gaussian model from iteration {}".format(args.iteration))
     gaussians = GaussianModel(args.sh_degree)
-    scene = Scene(args, gaussians, load_iteration=args.iteration, shuffle=False)
+    
+    model_path = args.model_path
+    iteration = args.iteration
+    point_cloud_path = os.path.join(model_path, "point_cloud", "iteration_" + str(iteration), "point_cloud.ply")
+    gaussians.load_ply(point_cloud_path)
     
     bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
@@ -394,13 +407,15 @@ def main():
     
     gt_pos = extract_gt_from_filename(args.target_image)
     
-    with torch.no_grad():
-        optimized_position, optimized_yaw, loss_history = iterative_optimization_refinement(
-            gaussians, pipeline, background, target_tensor,
-            coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=args.num_iterations,
-            lambda_weight=args.lambda_weight, fovx=fovx, fovy=fovy, width=width, height=height
-        )
-        coarse_pose, coarse_yaw = coarse_candidates[0] # just for diff logs
+    start_time = time.time()
+    optimized_position, optimized_yaw, loss_history = iterative_optimization_refinement(
+        gaussians, pipeline, background, target_tensor,
+        coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=args.num_iterations,
+        lambda_weight=args.lambda_weight, fovx=fovx, fovy=fovy, width=width, height=height,
+        learning_rate=args.learning_rate
+    )
+    refinement_time = time.time() - start_time
+    coarse_pose, coarse_yaw = coarse_candidates[0] # just for diff logs
     
     print("\n" + "="*80)
     print("STEP 5: FINAL OPTIMIZED RECEIVER POSE")
@@ -419,18 +434,13 @@ def main():
     else:
         print(f"\n[!] Ground Truth position could not be extracted from filename.")
     
-    print(f"\n--- Coarse-to-Fine Refinement Delta ---")
-    print(f"  ΔX: {(optimized_position[0] - coarse_pose[0]):.4f} m")
-    print(f"  ΔY: {(optimized_position[1] - coarse_pose[1]):.4f} m")
-    print(f"  ΔZ: {(optimized_position[2] - coarse_pose[2]):.4f} m")
-    print(f"  ΔYaw: {(optimized_yaw - coarse_yaw):.6f}°")
-    
     print(f"\n--- Optimization Statistics ---")
     print(f"  Initial Loss: {loss_history[0]:.6f}")
     print(f"  Final Loss:   {loss_history[-1]:.6f}")
     if loss_history[0] > 1e-8:
         reduction_pct = ((loss_history[0] - loss_history[-1]) / loss_history[0] * 100)
         print(f"  Loss Reduction: {reduction_pct:.2f}%")
+    print(f"  Refinement Time: {refinement_time:.2f} seconds")
     print("="*80 + "\n")
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import shutil
 import glob
 import numpy as np
 
-rf_root = "/home/ved/Ved/Project_1/dataset_ideal_phase"
+rf_root = "/home/ved/Ved/Project_1/dataset_ideal_delay_3.5ghz"
 sparse_dir = os.path.join(rf_root, "sparse", "0")
 
 # 1. Create sparse/0 directory

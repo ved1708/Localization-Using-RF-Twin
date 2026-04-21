@@ -86,11 +86,10 @@ Two separate scripts for generating photorealistic visual datasets for 3D Gaussi
 
 ### Generate 325 Training Images (Static Scene)
 ```bash
-
-blender --background --python /home/ved/Ved/Project_1/generate_visual_dataset.py --   
-  --meshes_dir=meshes_d   
-  --output_dir=dataset_visual   
-  --test_ratio=0.10   
+blender --background --python /home/ved/Ved/Project_1/generate_visual_dataset.py -- \
+  --meshes_dir=meshes_d \
+  --output_dir=dataset_visual \
+  --test_ratio=0.10 \  
   --test_block_size=8
 ```
 

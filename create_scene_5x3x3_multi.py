@@ -103,7 +103,6 @@ class MeshBuilder:
         """Adds a sphere to the mesh."""
         base_idx = len(self.vertices)
         
-        # Generate sphere vertices using parametric equations
         for i in range(resolution + 1):
             lat = np.pi * (-0.5 + float(i) / resolution)
             cos_lat = np.cos(lat)
@@ -119,7 +118,6 @@ class MeshBuilder:
                 z = center[2] + radius * sin_lat
                 self.vertices.append([x, y, z])
 
-        # Generate sphere faces
         for i in range(resolution):
             for j in range(resolution):
                 p1 = base_idx + i * (resolution + 1) + j
@@ -129,6 +127,47 @@ class MeshBuilder:
                 
                 self.faces.append([p1, p2, p3])
                 self.faces.append([p1, p3, p4])
+
+    def add_sofa_base(self, sofa_x, sofa_y, seat_bottom_z,
+                      leg_size=0.07, leg_height=0.08, base_thickness=0.14):
+        """
+        Adds a solid packed base block + 4 short legs underneath a sofa.
+
+        Layout (bottom → top):
+          z=0                           floor
+          z=0  → z=leg_height           4 corner legs
+          z=leg_height → seat_bottom_z  solid filled base block
+          z=seat_bottom_z               bottom of seat cushion
+
+        Parameters
+        ----------
+        sofa_x          : (x_min, x_max) full sofa footprint
+        sofa_y          : (y_min, y_max) full sofa footprint
+        seat_bottom_z   : z of the underside of the seat cushion
+        leg_size        : square cross-section of each leg (default 7 cm)
+        leg_height      : how tall the legs are off the floor (default 8 cm)
+        base_thickness  : height of the solid base block above the legs (default 14 cm)
+        """
+        x0, x1 = sofa_x
+        y0, y1 = sofa_y
+
+        # --- 4 short corner legs (floor → leg_height) ---
+        self.add_box((x0,            x0 + leg_size),
+                     (y0,            y0 + leg_size),
+                     (0,             leg_height))
+        self.add_box((x1 - leg_size, x1),
+                     (y0,            y0 + leg_size),
+                     (0,             leg_height))
+        self.add_box((x0,            x0 + leg_size),
+                     (y1 - leg_size, y1),
+                     (0,             leg_height))
+        self.add_box((x1 - leg_size, x1),
+                     (y1 - leg_size, y1),
+                     (0,             leg_height))
+
+        # --- solid packed base block (leg_height → seat_bottom_z) ---
+        self.add_box(sofa_x, sofa_y, (leg_height, seat_bottom_z))
+
 
 # Material IDs
 MAT_GREY = 0; MAT_WHITE = 1; MAT_WOOD = 2; MAT_GLASS = 3; MAT_METAL = 4; MAT_CONCRETE = 5
@@ -241,11 +280,11 @@ def create_scene_meshes(output_dir):
     table_width = 0.76  # depth from wall
     table_length = 1.17  # along the wall
     gap = 0.15
-    table_starts_y = [0.5, 0.5 + table_length + gap, 0.5 + 2*(table_length + gap)]  # y positions along left wall
+    table_starts_y = [0.5, 0.5 + table_length + gap, 0.5 + 2*(table_length + gap)]
     
     for i, table_y_start in enumerate(table_starts_y):
         table_height, table_thickness = 0.76, 0.05
-        table_x = (0.1, 0.1 + table_width)  # 10cm from left wall
+        table_x = (0.1, 0.1 + table_width)
         table_y = (table_y_start, table_y_start + table_length)
         
         # Table top & legs
@@ -256,7 +295,7 @@ def create_scene_meshes(output_dir):
         furniture.add_box((table_x[0], table_x[0]+leg_size), (table_y[1]-leg_size, table_y[1]), (0, table_height - table_thickness))
         furniture.add_box((table_x[1]-leg_size, table_x[1]), (table_y[1]-leg_size, table_y[1]), (0, table_height - table_thickness))
         
-        # Chair - positioned away from wall (facing the table)
+        # Chair
         chair_width, chair_depth = 0.45, 0.43
         chair_seat_height, chair_seat_thickness = 0.46, 0.05
         chair_backrest_height, chair_backrest_thickness = 0.40, 0.05
@@ -279,32 +318,16 @@ def create_scene_meshes(output_dir):
     write_ply_simple(os.path.join(meshes_dir, 'furniture.ply'), furniture.vertices, furniture.faces)
     add_to_combined(furniture, MAT_WOOD)
     
-    # # Pillar - 15cm x 15cm, positioned 30cm from middle chair (chair 2)
-    # pillar = MeshBuilder()
-    # pillar_size = 0.35
-    # middle_chair_x = table_starts_y[1]  # y position of middle table
-    # middle_chair_center_y = middle_chair_x + table_length / 2
-    # pillar_distance = 0.50  # 30cm from chair
-    # middle_chair_back_x = 0.1 + table_width + 0.05 + 0.43  # chair back position
-    # pillar_x_center = middle_chair_back_x + pillar_distance
-    # pillar_x = (pillar_x_center - pillar_size/2, pillar_x_center + pillar_size/2)
-    # pillar_y = (middle_chair_center_y - pillar_size/2, middle_chair_center_y + pillar_size/2)
-    
-    # pillar.add_box(pillar_x, pillar_y, (0, 3.0))  # Floor to ceiling
-    # write_ply_simple(os.path.join(meshes_dir, 'pillar.ply'), pillar.vertices, pillar.faces)
-    # add_to_combined(pillar, MAT_CONCRETE)
-    # print("✓ Pillar (15cm x 15cm, concrete)")
-    
     # Center coffee table and sofas
     furniture_center = MeshBuilder()
     
-    # Center coffee table - small height table at room center
+    # Center coffee table
     center_table_width = 1.2
     center_table_length = 0.6
     center_table_height = 0.4
     center_table_thickness = 0.05
-    room_center_x = 3.5  # Center of 7m room
-    room_center_y = 2.5  # Center of 5m room
+    room_center_x = 3.5
+    room_center_y = 2.5
     
     ct_x = (room_center_x - center_table_width/2, room_center_x + center_table_width/2)
     ct_y = (room_center_y - center_table_length/2, room_center_y + center_table_length/2)
@@ -319,144 +342,109 @@ def create_scene_meshes(output_dir):
     furniture_center.add_box((ct_x[1]-leg_size, ct_x[1]), (ct_y[1]-leg_size, ct_y[1]), (0, center_table_height - center_table_thickness))
     print("✓ Center coffee table")
     
-    # Two sofas facing each other (north and south of center table)
+    # Sofa parameters
     sofa_length = 2.0
     sofa_depth = 0.7
-    sofa_seat_height = 0.4
-    sofa_seat_thickness = 0.1
-    sofa_backrest_height = 0.5
-    sofa_backrest_thickness = 0.12
-    
+    sofa_seat_height = 0.30          # lowered from 0.40
+    sofa_seat_thickness = 0.10
+    sofa_backrest_height = 0.38      # lowered from 0.50
+    sofa_backrest_thickness = 0.10
+    armrest_width = 0.1
+    armrest_height = sofa_seat_height + 0.12   # armrest sits 12 cm above seat top
+    sofa_leg_size = 0.07
+    sofa_leg_height = 0.08           # legs are 8 cm tall
+    seat_bottom_z = sofa_seat_height - sofa_seat_thickness   # = 0.20 m
+
+    # ------------------------------------------------------------------
     # Sofa 1 - South side (lower y), facing north
-    sofa1_y_back = ct_y[0] - 0.4  # 40cm gap from table
+    # ------------------------------------------------------------------
+    sofa1_y_back  = ct_y[0] - 0.4
     sofa1_y_front = sofa1_y_back - sofa_depth
     sofa1_x = (room_center_x - sofa_length/2, room_center_x + sofa_length/2)
-    
-    # Sofa 1 seat
-    furniture_center.add_box(sofa1_x, (sofa1_y_front, sofa1_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, sofa_seat_height))
-    # Sofa 1 backrest
-    furniture_center.add_box(sofa1_x, (sofa1_y_front, sofa1_y_front + sofa_backrest_thickness), 
-                     (sofa_seat_height, sofa_seat_height + sofa_backrest_height))
-    # Sofa 1 armrests
-    armrest_width = 0.1
-    armrest_height = sofa_seat_height + 0.15
-    furniture_center.add_box((sofa1_x[0], sofa1_x[0] + armrest_width), (sofa1_y_front, sofa1_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, armrest_height))
-    furniture_center.add_box((sofa1_x[1] - armrest_width, sofa1_x[1]), (sofa1_y_front, sofa1_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, armrest_height))
-    print("✓ Sofa 1 (south side)")
-    
+    sofa1_seat_x = (sofa1_x[0] + armrest_width, sofa1_x[1] - armrest_width)
+    sofa1_y_mid = sofa1_y_front + sofa_backrest_thickness
+
+    # Backrest (full width, goes down to seat bottom)
+    furniture_center.add_box(sofa1_x,
+                              (sofa1_y_front, sofa1_y_mid),
+                              (seat_bottom_z, sofa_seat_height + sofa_backrest_height))
+    # Seat (tucked between armrests and in front of backrest)
+    furniture_center.add_box(sofa1_seat_x, (sofa1_y_mid, sofa1_y_back),
+                              (seat_bottom_z, sofa_seat_height))
+    # Armrests (shortened to start after backrest)
+    furniture_center.add_box((sofa1_x[0], sofa1_x[0] + armrest_width),
+                              (sofa1_y_mid, sofa1_y_back),
+                              (seat_bottom_z, armrest_height))
+    furniture_center.add_box((sofa1_x[1] - armrest_width, sofa1_x[1]),
+                              (sofa1_y_mid, sofa1_y_back),
+                              (seat_bottom_z, armrest_height))
+    # ── BASE: 4 legs + bottom frame panel ──
+    furniture_center.add_sofa_base(sofa1_x, (sofa1_y_front, sofa1_y_back),
+                                   seat_bottom_z, leg_size=sofa_leg_size,
+                                   leg_height=sofa_leg_height)
+    print("✓ Sofa 1 (south side) — with base")
+
+    # ------------------------------------------------------------------
     # Sofa 2 - North side (higher y), facing south
-    sofa2_y_front = ct_y[1] + 0.4  # 40cm gap from table
-    sofa2_y_back = sofa2_y_front + sofa_depth
+    # ------------------------------------------------------------------
+    sofa2_y_front = ct_y[1] + 0.4
+    sofa2_y_back  = sofa2_y_front + sofa_depth
     sofa2_x = (room_center_x - sofa_length/2, room_center_x + sofa_length/2)
-    
-    # Sofa 2 seat
-    furniture_center.add_box(sofa2_x, (sofa2_y_front, sofa2_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, sofa_seat_height))
-    # Sofa 2 backrest
-    furniture_center.add_box(sofa2_x, (sofa2_y_back - sofa_backrest_thickness, sofa2_y_back), 
-                     (sofa_seat_height, sofa_seat_height + sofa_backrest_height))
-    # Sofa 2 armrests
-    furniture_center.add_box((sofa2_x[0], sofa2_x[0] + armrest_width), (sofa2_y_front, sofa2_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, armrest_height))
-    furniture_center.add_box((sofa2_x[1] - armrest_width, sofa2_x[1]), (sofa2_y_front, sofa2_y_back), 
-                     (sofa_seat_height - sofa_seat_thickness, armrest_height))
-    print("✓ Sofa 2 (north side)")
-    
+    sofa2_seat_x = (sofa2_x[0] + armrest_width, sofa2_x[1] - armrest_width)
+    sofa2_y_mid = sofa2_y_back - sofa_backrest_thickness
+
+    # Backrest (full width, goes down to seat bottom)
+    furniture_center.add_box(sofa2_x,
+                              (sofa2_y_mid, sofa2_y_back),
+                              (seat_bottom_z, sofa_seat_height + sofa_backrest_height))
+    # Seat (tucked between armrests and in front of backrest)
+    furniture_center.add_box(sofa2_seat_x, (sofa2_y_front, sofa2_y_mid),
+                              (seat_bottom_z, sofa_seat_height))
+    # Armrests (shortened to start before backrest)
+    furniture_center.add_box((sofa2_x[0], sofa2_x[0] + armrest_width),
+                              (sofa2_y_front, sofa2_y_mid),
+                              (seat_bottom_z, armrest_height))
+    furniture_center.add_box((sofa2_x[1] - armrest_width, sofa2_x[1]),
+                              (sofa2_y_front, sofa2_y_mid),
+                              (seat_bottom_z, armrest_height))
+    # ── BASE: 4 legs + bottom frame panel ──
+    furniture_center.add_sofa_base(sofa2_x, (sofa2_y_front, sofa2_y_back),
+                                   seat_bottom_z, leg_size=sofa_leg_size,
+                                   leg_height=sofa_leg_height)
+    print("✓ Sofa 2 (north side) — with base")
+
     write_ply_simple(os.path.join(meshes_dir, 'furniture_center.ply'), furniture_center.vertices, furniture_center.faces)
     add_to_combined(furniture_center, MAT_WOOD)
     
     # LED TV on back wall (y=5), facing sofa
     led_tv = MeshBuilder()
-    # TV dimensions: 55" screen = 1.2m wide x 0.7m tall x 0.05m thick
     tv_width = 1.2
     tv_height = 0.7
     tv_thickness = 0.05
-    tv_center_height = 1.5  # Center of TV at 1.5m height
+    tv_center_height = 1.5
     
-    # Position: On back wall (y=5), aligned with sofa area
-    tv_x_center = 3.5  # Center of room
-    tv_y = (tv_thickness, 0)  # On back wall at y=5
+    tv_x_center = 3.5
+    tv_y = (tv_thickness, 0)
     tv_x = (tv_x_center - tv_width/2, tv_x_center + tv_width/2)
     tv_z = (tv_center_height - tv_height/2, tv_center_height + tv_height/2)
     
-    # TV screen (thin box)
     led_tv.add_box(tv_x, tv_y, tv_z)
     
     write_ply_simple(os.path.join(meshes_dir, 'led_tv.ply'), led_tv.vertices, led_tv.faces)
     add_to_combined(led_tv, MAT_METAL)
     print("✓ LED TV on back wall (facing sofa)")
 
-    # # ---------------------------------------------------
-    # # Standing Person (RF human phantom approximation)
-    # # ---------------------------------------------------
-    # person = MeshBuilder()
-
-    # # Dimensions based on RF human-body approximation
-    # person_height = 1.40
-    # torso_height = 1.0
-    # leg_height = 0.9
-    # body_width = 0.45
-    # body_depth = 0.28
-    # head_size = 0.20
-
-    # # Position person slightly offset from center table
-    # person_center_x = 4.8
-    # person_center_y = 2.5
-
-    # px = (person_center_x - body_width/2, person_center_x + body_width/2)
-    # py = (person_center_y - body_depth/2, person_center_y + body_depth/2)
-
-    # # Torso
-    # person.add_box(px, py, (leg_height, leg_height + torso_height))
-
-    # # Head
-    # head_radius = head_size / 2
-    # head_center = [person_center_x, person_center_y, leg_height + torso_height + head_radius]
-    # person.add_sphere(head_center, head_radius, resolution=16)
-
-    # # Legs
-    # leg_gap = 0.05
-    # leg_width = (body_width - leg_gap) / 2
-
-    # # Left leg
-    # person.add_box(
-    #     (person_center_x - body_width/2, person_center_x - body_width/2 + leg_width),
-    #     py,
-    #     (0, leg_height)
-    # )
-
-    # # Right leg
-    # person.add_box(
-    #     (person_center_x + body_width/2 - leg_width, person_center_x + body_width/2),
-    #     py,
-    #     (0, leg_height)
-    # )
-
-    # write_ply_simple(os.path.join(meshes_dir, 'person.ply'),
-    #                  person.vertices, person.faces)
-
-    # add_to_combined(person, MAT_CONCRETE)
-    # print("✓ Person (standing)")
-
-    # ---------------------------------------------------
-    # Metallic Cube on Table
-    # ---------------------------------------------------
+    # Metallic Cube on Center Coffee Table
     metallic_cube = MeshBuilder()
     
-    # Cube dimensions: 20cm x 20cm x 20cm
     cube_size = 0.20
-    
-    # Position on center coffee table
-    center_table_center_x = room_center_x  # 3.5
-    center_table_center_y = room_center_y  # 2.5
-    center_table_top_height = center_table_height  # 0.4
+    center_table_center_x = room_center_x
+    center_table_center_y = room_center_y
+    center_table_top_height = center_table_height
     
     cube_x = (center_table_center_x - cube_size/2, center_table_center_x + cube_size/2)
     cube_y = (center_table_center_y - cube_size/2, center_table_center_y + cube_size/2)
-    cube_z = (center_table_top_height, center_table_top_height + 0.50)
+    cube_z = (center_table_top_height, center_table_top_height + 0.38)
     
     metallic_cube.add_box(cube_x, cube_y, cube_z)
     
@@ -526,11 +514,6 @@ def create_scene_xml(output_path):
         <ref id="mat_wood"/>
     </shape>
     
-    # <shape type="ply" id="pillar">
-    #     <string name="filename" value="meshes_d/pillar.ply"/>
-    #     <ref id="mat_concrete"/>
-    # </shape>
-    
     <shape type="ply" id="furniture_center">
         <string name="filename" value="meshes_d/furniture_center.ply"/>
         <ref id="mat_wood"/>
@@ -560,4 +543,3 @@ if __name__ == "__main__":
     print("Room dimensions: x=0-7m, y=0-5m, z=0-3m")
     print("Combined PLY: room_5x3x3_combined.ply (for 3D viewers)")
     print("Separate PLYs: meshes_d/ (for Sionna RF simulation)")
-    
