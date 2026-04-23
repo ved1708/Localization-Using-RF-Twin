@@ -282,15 +282,21 @@ def main():
 
     if args.coarse_x is not None and args.coarse_y is not None and args.coarse_z is not None:
         print(f"\n--- PRIOR COARSE POSE PROVIDED: ({args.coarse_x:.2f}, {args.coarse_y:.2f}, {args.coarse_z:.2f}) ---")
-        print("Skipping broad anchor search. Snapping to the nearest grid index.")
+        print("Skipping broad anchor search. Finding existing grid points within 0.3m radius.")
         
-        ix = np.argmin(np.abs(x_range - args.coarse_x))
-        iy = np.argmin(np.abs(y_range - args.coarse_y))
-        iz = np.argmin(np.abs(z_range - args.coarse_z))
+        neighbor_indices = set()
+        for p in poses_info:
+            px, py, pz = p['position']
+            dist = np.sqrt((px - args.coarse_x)**2 + (py - args.coarse_y)**2 + (pz - args.coarse_z)**2)
+            if dist <= 0.5:
+                neighbor_indices.add(p['grid_idx'])
+                
+        neighbor_poses_info = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
         
-        # We don't know the best yaw, so we can treat all yaws at this location as "best anchors"
-        for itheta in range(len(yaws)):
-            best_anchors.append({'grid_idx': (ix, iy, iz, itheta)})
+        print(f"\n--- FAST COARSE SEARCH WITHIN 0.3m ({len(neighbor_poses_info)} points) ---")
+        check_and_render_subset(neighbor_poses_info, "neighbor")
+        final_results = evaluate(args.target_image, rendered_folder, neighbor_poses_info, fast_ssim_only=False)
+
     else:
         # 1. ANCHOR GENERATION
         anchor_stride = 2
@@ -321,30 +327,25 @@ def main():
         top_k_anchors = 2
         best_anchors = best_spatial_anchors[:top_k_anchors]
     
-    # Phase 2: Extract neighbors
-    neighbor_indices = set()
-    for anchor in best_anchors:
-        ix, iy, iz, itheta = anchor['grid_idx']
-        
-        # When coarse position is given, we expand the subgrid space (e.g. [-2, 2])
-        # to ensure it covers enough distance to account for drift.
-        radius = 1
-        if args.coarse_x is not None:
-            radius = 2  # Expand neighborhood slightly if we're solely using this area
+        # Phase 2: Extract neighbors
+        neighbor_indices = set()
+        for anchor in best_anchors:
+            ix, iy, iz, itheta = anchor['grid_idx']
             
-        for dx in range(-radius, radius + 1):
-            for dy in range(-radius, radius + 1):
-                for dz in range(-radius, radius + 1):
-                    for n_itheta in range(len(yaws)): # Evaluate all yaw angles
-                        n_ix, n_iy, n_iz = ix + dx, iy + dy, iz + dz
-                        if 0 <= n_ix < len(x_range) and 0 <= n_iy < len(y_range) and 0 <= n_iz < len(z_range):
-                            neighbor_indices.add((n_ix, n_iy, n_iz, n_itheta))
-                            
-    neighbor_poses_info = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
-    
-    print(f"\n--- PHASE 2: NEIGHBOR SEARCH (From Anchors -> {len(neighbor_poses_info)} neighbors) ---")
-    check_and_render_subset(neighbor_poses_info, "neighbor")
-    final_results = evaluate(args.target_image, rendered_folder, neighbor_poses_info, fast_ssim_only=False)
+            radius = 1
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    for dz in range(-radius, radius + 1):
+                        for n_itheta in range(len(yaws)): # Evaluate all yaw angles
+                            n_ix, n_iy, n_iz = ix + dx, iy + dy, iz + dz
+                            if 0 <= n_ix < len(x_range) and 0 <= n_iy < len(y_range) and 0 <= n_iz < len(z_range):
+                                neighbor_indices.add((n_ix, n_iy, n_iz, n_itheta))
+                                
+        neighbor_poses_info = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
+        
+        print(f"\n--- PHASE 2: NEIGHBOR SEARCH (From Anchors -> {len(neighbor_poses_info)} neighbors) ---")
+        check_and_render_subset(neighbor_poses_info, "neighbor")
+        final_results = evaluate(args.target_image, rendered_folder, neighbor_poses_info, fast_ssim_only=False)
 
     print("\n================= BEST COARSE POSE =================")
     if final_results:

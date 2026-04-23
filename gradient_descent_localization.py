@@ -106,7 +106,7 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
     if coarse_x is not None:
         print(f"STEP 1: Run Sub-Grid Search around ({coarse_x:.2f}, {coarse_y:.2f}, {coarse_z:.2f})...")
     else:
-        print("STEP 1: Run Grid Search for Coarse Pose Estimation... (This might take a moment)")
+        print("STEP 1: Run Grid Search for Coarse Pose Estimation... (might take a moment)")
     print("="*60)
     
     cmd_str = [
@@ -124,7 +124,7 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
     process = subprocess.Popen(
         cmd_str,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=None,
         text=True,
         bufsize=1
     )
