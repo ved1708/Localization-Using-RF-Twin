@@ -18,6 +18,10 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import sys
+
+# Add RF-3DGS to path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "RF-3DGS"))
 
 from gaussian_renderer import render
 from scene.gaussian_model import GaussianModel

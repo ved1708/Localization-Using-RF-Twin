@@ -4,7 +4,7 @@
 TARGET_DIR="/home/ved/Ved/Project_1/localisation_frames_3.5ghz_2"
 
 # Model path and iteration arguments
-MODEL_PATH="output/rf_model_delay_3.5ghz"
+MODEL_PATH="RF-3DGS/output/rf_model_delay_3.5ghz"
 ITERATION=40000
 
 # Create a temporary file for outputs

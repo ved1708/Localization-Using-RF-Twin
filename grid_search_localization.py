@@ -235,10 +235,13 @@ def evaluate(target_image_path, rendered_folder, poses_info, fast_ssim_only=Fals
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path",    type=str,   default="output/rf_model")
+    parser.add_argument("--model_path",    type=str,   default="RF-3DGS/output/rf_model")
     parser.add_argument("--iteration",     type=int,   default=40000)
     parser.add_argument("--target_image",  type=str,   required=True)
     parser.add_argument("--spacing",       type=float, default=0.5)
+    parser.add_argument("--coarse_x",      type=float, default=None, help="Prior coarse X position")
+    parser.add_argument("--coarse_y",      type=float, default=None, help="Prior coarse Y position")
+    parser.add_argument("--coarse_z",      type=float, default=None, help="Prior coarse Z position")
     args = parser.parse_args()
 
     x_bound = [0.3, 6.7]
@@ -256,17 +259,6 @@ def main():
     colmap_dir = "grid_search_colmap"
     _, poses_info = create_poses(x_range, y_range, z_range, yaws, colmap_dir)
 
-    # 1. ANCHOR GENERATION
-    anchor_stride = 2
-    anchor_indices = set()
-    for ix in range(0, len(x_range), anchor_stride):
-        for iy in range(0, len(y_range), anchor_stride):
-            for iz in range(0, len(z_range), anchor_stride):
-                for itheta in range(0, len(yaws)):
-                    anchor_indices.add((ix, iy, iz, itheta))
-    
-    anchor_poses_info = [p for p in poses_info if p['grid_idx'] in anchor_indices]
-    
     rendered_folder = os.path.join(args.model_path, "custom_renders")
 
     def check_and_render_subset(subset_poses, label):
@@ -286,31 +278,63 @@ def main():
         else:
             print(f"All {len(subset_poses)} {label} renders found. Skipping render.")
 
-    print("\n--- PHASE 1: FAST ANCHOR SEARCH ---")
-    check_and_render_subset(anchor_poses_info, "anchor")
-    anchor_results = evaluate(args.target_image, rendered_folder, anchor_poses_info, fast_ssim_only=True)
+    best_anchors = []
 
-    # Group by spatial grid index to find the best yaw for each location
-    spatial_best = {}
-    for res in anchor_results:
-        ix, iy, iz, _ = res['grid_idx']
-        loc_key = (ix, iy, iz)
-        if loc_key not in spatial_best or res['error'] < spatial_best[loc_key]['error']:
-            spatial_best[loc_key] = res
-            
-    best_spatial_anchors = sorted(list(spatial_best.values()), key=lambda x: x['error'])
+    if args.coarse_x is not None and args.coarse_y is not None and args.coarse_z is not None:
+        print(f"\n--- PRIOR COARSE POSE PROVIDED: ({args.coarse_x:.2f}, {args.coarse_y:.2f}, {args.coarse_z:.2f}) ---")
+        print("Skipping broad anchor search. Snapping to the nearest grid index.")
+        
+        ix = np.argmin(np.abs(x_range - args.coarse_x))
+        iy = np.argmin(np.abs(y_range - args.coarse_y))
+        iz = np.argmin(np.abs(z_range - args.coarse_z))
+        
+        # We don't know the best yaw, so we can treat all yaws at this location as "best anchors"
+        for itheta in range(len(yaws)):
+            best_anchors.append({'grid_idx': (ix, iy, iz, itheta)})
+    else:
+        # 1. ANCHOR GENERATION
+        anchor_stride = 2
+        anchor_indices = set()
+        for ix in range(0, len(x_range), anchor_stride):
+            for iy in range(0, len(y_range), anchor_stride):
+                for iz in range(0, len(z_range), anchor_stride):
+                    for itheta in range(0, len(yaws)):
+                        anchor_indices.add((ix, iy, iz, itheta))
+        
+        anchor_poses_info = [p for p in poses_info if p['grid_idx'] in anchor_indices]
+        
+        print("\n--- PHASE 1: FAST ANCHOR SEARCH ---")
+        check_and_render_subset(anchor_poses_info, "anchor")
+        anchor_results = evaluate(args.target_image, rendered_folder, anchor_poses_info, fast_ssim_only=True)
 
-    # Pick top 2 spatial anchors
-    top_k_anchors = 2
-    best_anchors = best_spatial_anchors[:top_k_anchors]
+        # Group by spatial grid index to find the best yaw for each location
+        spatial_best = {}
+        for res in anchor_results:
+            idx_x, idx_y, idx_z, _ = res['grid_idx']
+            loc_key = (idx_x, idx_y, idx_z)
+            if loc_key not in spatial_best or res['error'] < spatial_best[loc_key]['error']:
+                spatial_best[loc_key] = res
+                
+        best_spatial_anchors = sorted(list(spatial_best.values()), key=lambda x: x['error'])
+
+        # Pick top 2 spatial anchors
+        top_k_anchors = 2
+        best_anchors = best_spatial_anchors[:top_k_anchors]
     
     # Phase 2: Extract neighbors
     neighbor_indices = set()
     for anchor in best_anchors:
         ix, iy, iz, itheta = anchor['grid_idx']
-        for dx in [-1, 0, 1]:
-            for dy in [-1, 0, 1]:
-                for dz in [-1, 0, 1]:
+        
+        # When coarse position is given, we expand the subgrid space (e.g. [-2, 2])
+        # to ensure it covers enough distance to account for drift.
+        radius = 1
+        if args.coarse_x is not None:
+            radius = 2  # Expand neighborhood slightly if we're solely using this area
+            
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                for dz in range(-radius, radius + 1):
                     for n_itheta in range(len(yaws)): # Evaluate all yaw angles
                         n_ix, n_iy, n_iz = ix + dx, iy + dy, iz + dz
                         if 0 <= n_ix < len(x_range) and 0 <= n_iy < len(y_range) and 0 <= n_iz < len(z_range):
@@ -318,7 +342,7 @@ def main():
                             
     neighbor_poses_info = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
     
-    print(f"\n--- PHASE 2: NEIGHBOR SEARCH (Top {top_k_anchors} anchors -> {len(neighbor_poses_info)} neighbors) ---")
+    print(f"\n--- PHASE 2: NEIGHBOR SEARCH (From Anchors -> {len(neighbor_poses_info)} neighbors) ---")
     check_and_render_subset(neighbor_poses_info, "neighbor")
     final_results = evaluate(args.target_image, rendered_folder, neighbor_poses_info, fast_ssim_only=False)
 

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RF Localisation Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #0e0e12; color: #e2e2e8; min-height: 100vh; padding: 20px; }
+h1 { font-size: 18px; font-weight: 500; color: #e2e2e8; margin-bottom: 4px; }
+.subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+
+.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.mc { background: #1a1a22; border-radius: 8px; padding: 10px 14px; border: 0.5px solid #2a2a36; }
+.mc .ml { font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.mc .mv { font-size: 22px; font-weight: 500; }
+.mv.good { color: #1D9E75; }
+.mv.warn { color: #EF9F27; }
+.mv.bad  { color: #E24B4A; }
+.mv.dim  { color: #555; }
+
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; overflow: hidden; }
+.panel-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 6px; border-bottom: 0.5px solid #2a2a36; display: flex; justify-content: space-between; align-items: center; }
+.panel-head .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; }
+.badge.true-badge  { background: #1a2e3a; color: #5DCAA5; border: 0.5px solid #0F6E56; }
+.badge.pred-badge  { background: #2a1e30; color: #AFA9EC; border: 0.5px solid #534AB7; }
+.canvas-wrap { position: relative; padding: 8px 8px 8px 8px; display: flex; gap: 6px; }
+canvas.pc { border-radius: 6px; background: #13131a; display: block; }
+
+.bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.err-panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; padding: 12px 14px; }
+.err-panel .ep-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+.err-bars { display: flex; flex-direction: column; gap: 5px; max-height: 160px; overflow-y: auto; }
+.ebr { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.ebr .pl { color: #666; min-width: 32px; }
+.ebr .bg { flex: 1; background: #13131a; border-radius: 3px; height: 10px; overflow: hidden; }
+.ebr .fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.ebr .pv { min-width: 46px; text-align: right; color: #ccc; }
+
+.log-panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; padding: 12px 14px; }
+.log-panel .lp-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+.log-lines { font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.6; color: #999; max-height: 160px; overflow-y: auto; }
+.log-lines .ll-ok   { color: #1D9E75; }
+.log-lines .ll-warn { color: #EF9F27; }
+.log-lines .ll-err  { color: #E24B4A; }
+.log-lines .ll-step { color: #5DCAA5; }
+
+.colorbar-wrap { display: flex; flex-direction: column; align-items: center; }
+canvas.cb { border-radius: 3px; }
+.cb-top { font-size: 9px; color: #666; margin-bottom: 2px; }
+.cb-bot { font-size: 9px; color: #666; margin-top: 2px; }
+.cb-lbl { font-size: 9px; color: #555; margin-top: 4px; writing-mode: vertical-rl; transform: rotate(180deg); }
+
+.status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+.dot.running { background: #EF9F27; animation: pulse 1s ease-in-out infinite; }
+.dot.complete { background: #1D9E75; }
+.dot.waiting  { background: #555; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.status-text { font-size: 12px; color: #888; flex-grow: 1; }
+
+.controls { display: flex; gap: 8px; }
+.btn { background: #2a2a36; color: #e2e2e8; border: 0.5px solid #444; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+.btn:hover { background: #3a3a46; }
+.btn-start { background: #0F6E56; border-color: #1D9E75; }
+.btn-start:hover { background: #158a6d; }
+.btn-stop { background: #6E0F1D; border-color: #E24B4A; }
+.btn-stop:hover { background: #8a1526; }
+</style>
+</head>
+<body>
+
+<h1>RF-3DGS Localisation Pipeline</h1>
+<p class="subtitle">7 × 5 × 3 m room · delay spectrum · true vs predicted path</p>
+
+<div class="status-bar">
+  <div class="dot waiting" id="dot"></div>
+  <span class="status-text" id="status-text">Waiting for pipeline...</span>
+  <div class="controls">
+    <button class="btn btn-start" onclick="startPipeline()">Start</button>
+    <button class="btn btn-stop" onclick="stopPipeline()">Stop</button>
+  </div>
+</div>
+
+<div class="metrics-row">
+  <div class="mc"><div class="ml">Points</div><div class="mv dim" id="m-pts">0 / —</div></div>
+  <div class="mc"><div class="ml">Latest error</div><div class="mv dim" id="m-last">—</div></div>
+  <div class="mc"><div class="ml">Localization Time</div><div class="mv dim" id="m-time">—</div></div>
+  <div class="mc"><div class="ml">RMSE (final)</div><div class="mv dim" id="m-rmse">—</div></div>
+</div>
+
+<div class="panels">
+  <div class="panel">
+    <div class="panel-head">True path <span class="badge true-badge">ground truth</span></div>
+    <div class="canvas-wrap">
+      <canvas class="pc" id="c-true" width="560" height="310"></canvas>
+      <div class="colorbar-wrap">
+        <div class="cb-top">3m</div>
+        <canvas class="cb" id="cb" width="14" height="250"></canvas>
+        <div class="cb-bot">0m</div>
+        <div class="cb-lbl">height Z</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">Predicted path <span class="badge pred-badge">pipeline output</span></div>
+    <div class="canvas-wrap">
+      <canvas class="pc" id="c-pred" width="560" height="310"></canvas>
+      <div style="width:20px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-row">
+  <div class="err-panel">
+    <div class="ep-head">Per-point translation error (m)</div>
+    <div class="err-bars" id="err-bars"><span style="font-size:11px;color:#444;">No data yet</span></div>
+  </div>
+  <div class="log-panel">
+    <div class="lp-head">Pipeline log</div>
+    <div class="log-lines" id="log-lines"><span style="color:#444;">Waiting...</span></div>
+  </div>
+</div>
+
+<script>
+const ROOM = { W: 7, D: 5, H: 3 };
+const CW = 560, CH = 310;
+const PAD = { l: 30, r: 8, t: 12, b: 24 };
+const sx = (CW - PAD.l - PAD.r) / ROOM.W;
+const sy = (CH - PAD.t - PAD.b) / ROOM.D;
+const tx = x => PAD.l + x * sx;
+const ty = y => PAD.t + y * sy;
+
+function zColor(z, a=1) {
+  const t = Math.min(Math.max(z / ROOM.H, 0), 1);
+  const r = Math.round(53  + (29  - 53)  * t);
+  const g = Math.round(74  + (158 - 74)  * t);
+  const b = Math.round(183 + (117 - 183) * t);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function drawColorbar() {
+  const cb = document.getElementById('cb');
+  const ctx = cb.getContext('2d');
+  for (let i = 0; i < 300; i++) {
+    ctx.fillStyle = zColor((1 - i/300) * ROOM.H);
+    ctx.fillRect(0, i, 14, 1);
+  }
+}
+
+function drawRoom(ctx) {
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let gx = 0; gx <= ROOM.W; gx++) {
+    ctx.beginPath(); ctx.moveTo(tx(gx), PAD.t); ctx.lineTo(tx(gx), CH-PAD.b); ctx.stroke();
+  }
+  for (let gy = 0; gy <= ROOM.D; gy++) {
+    ctx.beginPath(); ctx.moveTo(PAD.l, ty(gy)); ctx.lineTo(CW-PAD.r, ty(gy)); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(PAD.l, PAD.t, ROOM.W*sx, ROOM.D*sy);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '9px system-ui';
+  ctx.textAlign = 'center';
+  for (let gx = 0; gx <= ROOM.W; gx++) ctx.fillText(gx, tx(gx), CH-7);
+  ctx.textAlign = 'right';
+  for (let gy = 0; gy <= ROOM.D; gy++) ctx.fillText(gy, PAD.l-3, ty(gy)+3);
+}
+
+function drawPath(ctx, pts) {
+  if (!pts.length) return;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i-1], b = pts[i];
+    ctx.beginPath(); ctx.moveTo(tx(a.x), ty(a.y)); ctx.lineTo(tx(b.x), ty(b.y));
+    ctx.strokeStyle = zColor(b.z, 0.75); ctx.lineWidth = 2; ctx.stroke();
+  }
+  pts.forEach((p, i) => {
+    ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), i === 0 ? 6 : 4.5, 0, Math.PI*2);
+    ctx.fillStyle = zColor(p.z); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = 'bold 8px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(i+1, tx(p.x), ty(p.y)+3);
+  });
+}
+
+function ccls(e) { return e < 0.3 ? 'good' : e < 0.7 ? 'warn' : 'bad'; }
+
+const ctxT = document.getElementById('c-true').getContext('2d');
+const ctxP = document.getElementById('c-pred').getContext('2d');
+drawColorbar(); drawRoom(ctxT); drawRoom(ctxP);
+
+let lastPointCount = 0;
+
+function formatLog(lines) {
+  return lines.map(l => {
+    let cls = '';
+    if (l.includes('✓') || l.includes('Done')) cls = 'll-ok';
+    else if (l.includes('⚠') || l.includes('fallback')) cls = 'll-warn';
+    else if (l.includes('✗')) cls = 'll-err';
+    else if (l.includes('→')) cls = 'll-step';
+    return `<div class="${cls}">${l}</div>`;
+  }).join('');
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/api/results');
+    const d = await r.json();
+
+    const tp = d.true_path || [], pp = d.pred_path || [], errs = d.errors || [];
+    const n = tp.length;
+    const status = d.status || 'waiting';
+
+    // status dot
+    const dot = document.getElementById('dot');
+    dot.className = 'dot ' + (status === 'complete' ? 'complete' : status === 'running' ? 'running' : 'waiting');
+    document.getElementById('status-text').textContent =
+      status === 'complete' ? `Complete — ${n} points processed` :
+      status === 'running'  ? `Running — point ${n} of ${d.total || '?'}` : 'Waiting for pipeline...';
+
+    // metrics
+    document.getElementById('m-pts').textContent = `${n} / ${d.total || '?'}`;
+    document.getElementById('m-pts').className = 'mv' + (n > 0 ? '' : ' dim');
+
+    if (errs.length) {
+      const last = errs[errs.length-1];
+      document.getElementById('m-last').textContent = last.toFixed(3) + ' m';
+      document.getElementById('m-last').className = 'mv ' + ccls(last);
+      
+      const times = d.times || [];
+      if (times.length > 0) {
+        const last_time = times[times.length-1];
+        document.getElementById('m-time').textContent = last_time.toFixed(2) + ' s';
+        document.getElementById('m-time').className = 'mv ' + (last_time < 0.5 ? 'good' : last_time < 1.0 ? 'warn' : 'dim');
+      }
+    }
+    if (d.rmse !== null && d.rmse !== undefined) {
+      document.getElementById('m-rmse').textContent = d.rmse.toFixed(3) + ' m';
+      document.getElementById('m-rmse').className = 'mv ' + ccls(d.rmse);
+    }
+
+    // redraw paths if new point arrived
+    const totalPts = tp.length + pp.length;
+    if (totalPts !== lastPointCount) {
+      lastPointCount = totalPts;
+      drawRoom(ctxT); drawPath(ctxT, tp);
+      drawRoom(ctxP); drawPath(ctxP, pp);
+    }
+
+    // error bars
+    if (errs.length) {
+      const maxE = Math.max(...errs, 0.5);
+      document.getElementById('err-bars').innerHTML = errs.map((e,i) => {
+        const col = e < 0.3 ? '#1D9E75' : e < 0.7 ? '#EF9F27' : '#E24B4A';
+        return `<div class="ebr">
+          <span class="pl">P${i+1}</span>
+          <div class="bg"><div class="fill" style="width:${(e/maxE*100).toFixed(1)}%;background:${col}"></div></div>
+          <span class="pv">${e.toFixed(3)} m</span>
+        </div>`;
+      }).join('');
+    }
+
+    // log
+    if (d.log && d.log.length) {
+      const logEl = document.getElementById('log-lines');
+      logEl.innerHTML = formatLog(d.log);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Server not reachable...';
+  }
+
+  setTimeout(poll, status === 'complete' ? 5000 : 1000);
+}
+
+// bind 'status' variable for the poll loop restart
+let status = 'waiting';
+poll();
+
+async function startPipeline() {
+  try {
+    await fetch('/api/start', { method: 'POST' });
+  } catch(e) {
+    console.error("Failed to start pipeline", e);
+  }
+}
+
+async function stopPipeline() {
+  try {
+    await fetch('/api/stop', { method: 'POST' });
+  } catch(e) {
+    console.error("Failed to stop pipeline", e);
+  }
+}
+</script>
+</body>
+</html>

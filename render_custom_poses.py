@@ -4,7 +4,12 @@ import numpy as np
 import torchvision
 from argparse import ArgumentParser
 from tqdm import tqdm
+import sys
 from os import makedirs
+
+# Add RF-3DGS to path since we moved the script out
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "RF-3DGS"))
+
 from arguments import ModelParams, PipelineParams, get_combined_args
 from gaussian_renderer import GaussianModel, render
 from scene import Scene
