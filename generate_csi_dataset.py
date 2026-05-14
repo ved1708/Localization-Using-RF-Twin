@@ -158,62 +158,50 @@ def equirectangular_to_perspective(img, fov, theta, phi, height, width):
 
 # --- Core MPC Spectrum Generation ---
 def plot_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
-    theta_r = path_instance.theta_r.numpy()  
-    phi_r = path_instance.phi_r.numpy()      
-    intensities = path_instance.a.numpy()  
-    print(f"intensities shape: {intensities.shape}, Intensities sample: {intensities}")
-    
-    # print(f"theta_r shape: {theta_r.shape}, phi_r shape: {phi_r.shape}, intensities shape: {intensities.shape}")
-    
-    # Check if empty (no paths)
-    if intensities.size == 0:
-        return np.ones((180*image_scale, 360*image_scale)) * -160.0 # Return noise floor
+    theta_r = path_instance.theta_r.numpy()
+    phi_r = path_instance.phi_r.numpy()
+    intensities = path_instance.a.numpy()
 
-    img = np.zeros((360*image_scale, 180*image_scale))
- 
-    sigma_x, sigma_y = kernel_sigma, kernel_sigma
-    theta = theta_r[0, 0, 0, :]*180/np.pi
-    phi = phi_r[0, 0, 0, :]*180/np.pi
-    amps = np.abs(intensities[0, 0, 0, 0, 0, :,0])
-    print(f"Amplitudes shape: {amps.shape}, Amplitudes sample: {amps}")
- 
-    size_x = int(kernel_size * sigma_x) | 1  
-    size_y = int(kernel_size * sigma_y) | 1  
+    if intensities.size == 0:
+        return np.ones((180*image_scale, 360*image_scale)) * -160.0
+
+    theta = theta_r[0, 0, 0, :] * 180 / np.pi
+    phi = phi_r[0, 0, 0, :] * 180 / np.pi
+    amps = np.abs(intensities[0, 0, 0, 0, 0, :, 0])
+
+    mask = amps > 1e-9
+    if not np.any(mask):
+        return np.ones((180*image_scale, 360*image_scale)) * -160.0
+
+    amps = amps[mask]
+    theta = theta[mask]
+    phi = phi[mask]
+
+    img_shape = (360 * image_scale, 180 * image_scale)
+    phi_idx = np.clip(((-phi + 180) * image_scale).astype(int), 0, img_shape[0] - 1)
+    theta_idx = np.clip((theta * image_scale).astype(int), 0, img_shape[1] - 1)
+
+    flat_idx = phi_idx * img_shape[1] + theta_idx
+    img = np.bincount(flat_idx, weights=amps, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+
+    size_x = int(kernel_size * kernel_sigma) | 1
+    size_y = int(kernel_size * kernel_sigma) | 1
     x = np.linspace(-size_x // 2, size_x // 2, size_x)
     y = np.linspace(-size_y // 2, size_y // 2, size_y)
     x, y = np.meshgrid(x, y)
-    gauss_kernel = np.exp(-(x**2 / (2 * sigma_x**2) + y**2 / (2 * sigma_y**2)))
+    gauss_kernel = np.exp(-(x**2 / (2 * kernel_sigma**2) + y**2 / (2 * kernel_sigma**2)))
+    gauss_kernel /= np.sum(gauss_kernel)
 
-    for idx, intensity in enumerate(amps):
-        if intensity > 1e-9: # Threshold for meaningful paths
-            path_dot = gauss_kernel*intensity/np.sum(gauss_kernel) 
-            phi_idx = int(-phi[idx] + 180)*image_scale
-            theta_idx = int(theta[idx])*image_scale
-            xmin = max(0, phi_idx - size_x // 2)
-            xmax = min(360*image_scale, phi_idx + size_x // 2 + 1)
-            ymin = max(0, theta_idx - size_y // 2)
-            ymax = min(180*image_scale, theta_idx + size_y // 2 + 1)
- 
-            gauss_xmin = max(0, size_x // 2 - phi_idx)
-            gauss_xmax = min(size_x, 360*image_scale - phi_idx + size_x // 2)
-            gauss_ymin = max(0, size_y // 2 - theta_idx)
-            gauss_ymax = min(size_y, 180*image_scale - theta_idx + size_y // 2)
- 
-            # Ensure indices match
-            if (xmax > xmin) and (ymax > ymin):
-                target_slice = img[xmin:xmax, ymin:ymax]
-                source_slice = path_dot[gauss_xmin:gauss_xmax, gauss_ymin:gauss_ymax]
-                
-                # Double check shapes match before adding
-                if target_slice.shape == source_slice.shape:
-                    img[xmin:xmax, ymin:ymax] += source_slice
+    from scipy.ndimage import convolve
+    img = convolve(img, gauss_kernel, mode='constant', cval=0.0)
 
-    non_zero_mask = img != 0.0
-    zero_mask = img == 0.0
+    nz = img > 0
+    if np.any(nz):
+        img[nz] = 10 * np.log10(img[nz])
+        img[~nz] = np.min(img[nz]) - 10
+    else:
+        img[:] = -160.0
 
-    img[non_zero_mask] = 10*np.log10(img[non_zero_mask]) 
-    img[zero_mask] = np.min(img[non_zero_mask])-10 if np.any(non_zero_mask) else -160
-    
     return img
 
 def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
@@ -224,59 +212,52 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
       B = path amplitude (acts as reference channel)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
     """
-    # Blob position = arrival direction (same as MPC)
-    theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi  # arrival elevation [deg]
-    phi_r   = path_instance.phi_r.numpy()[0, 0, 0, :]   * 180 / np.pi  # arrival azimuth   [deg]
-    # Color encoding = departure direction (what makes AoD different from MPC)
-    theta_t = path_instance.theta_t.numpy()[0, 0, 0, :] * 180 / np.pi  # departure elevation [deg]
-    phi_t   = path_instance.phi_t.numpy()[0, 0, 0, :]   * 180 / np.pi  # departure azimuth   [deg]
-    amps    = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])      # path amplitudes
+    theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi
+    phi_r = path_instance.phi_r.numpy()[0, 0, 0, :] * 180 / np.pi
+    theta_t = path_instance.theta_t.numpy()[0, 0, 0, :] * 180 / np.pi
+    phi_t = path_instance.phi_t.numpy()[0, 0, 0, :] * 180 / np.pi
+    amps = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])
 
     if amps.size == 0:
-        return np.ones((180 * image_scale, 360 * image_scale, 3)) * -160.0
+        return np.ones((360 * image_scale, 180 * image_scale, 3)) * -160.0
 
-    img_rgb = np.zeros((360 * image_scale, 180 * image_scale, 3))
+    mask = amps > 1e-9
+    if not np.any(mask):
+        return np.ones((360 * image_scale, 180 * image_scale, 3)) * -160.0
 
-    sigma_x, sigma_y = kernel_sigma, kernel_sigma
-    size_x = int(kernel_size * sigma_x) | 1
-    size_y = int(kernel_size * sigma_y) | 1
+    amps = amps[mask]
+    theta_r = theta_r[mask]
+    phi_r = phi_r[mask]
+    theta_t = theta_t[mask]
+    phi_t = phi_t[mask]
+
+    r_values = np.interp(theta_t, (0, 180), (0, 1))
+    g_values = np.interp(phi_t, (-180, 180), (1, 0))
+
+    img_shape = (360 * image_scale, 180 * image_scale)
+    phi_idx = np.clip(((-phi_r + 180) * image_scale).astype(int), 0, img_shape[0] - 1)
+    theta_idx = np.clip((theta_r * image_scale).astype(int), 0, img_shape[1] - 1)
+    flat_idx = phi_idx * img_shape[1] + theta_idx
+
+    r_img = np.bincount(flat_idx, weights=amps * r_values, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    g_img = np.bincount(flat_idx, weights=amps * g_values, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    b_img = np.bincount(flat_idx, weights=amps, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+
+    size_x = int(kernel_size * kernel_sigma) | 1
+    size_y = int(kernel_size * kernel_sigma) | 1
     x = np.linspace(-size_x // 2, size_x // 2, size_x)
     y = np.linspace(-size_y // 2, size_y // 2, size_y)
     x, y = np.meshgrid(x, y)
-    gauss_kernel = np.exp(-(x**2 / (2 * sigma_x**2) + y**2 / (2 * sigma_y**2)))
+    gauss_kernel = np.exp(-(x**2 / (2 * kernel_sigma**2) + y**2 / (2 * kernel_sigma**2)))
+    gauss_kernel /= np.sum(gauss_kernel)
 
-    for idx, amp in enumerate(amps):
-        if amp < 1e-9:
-            continue
+    from scipy.ndimage import convolve
+    r_img = convolve(r_img, gauss_kernel, mode='constant', cval=0.0)
+    g_img = convolve(g_img, gauss_kernel, mode='constant', cval=0.0)
+    b_img = convolve(b_img, gauss_kernel, mode='constant', cval=0.0)
 
-        # Blob color encodes departure angles (unique per TX-scatterer-RX geometry → discriminative for localization)
-        r_value = np.interp(theta_t[idx], (0, 180),    (0, 1))  # departure elevation → R
-        g_value = np.interp(phi_t[idx],   (-180, 180),  (1, 0)) # departure azimuth   → G
+    img_rgb = np.stack([r_img, g_img, b_img], axis=-1)
 
-        path_dot = gauss_kernel * amp / np.sum(gauss_kernel)
-
-        # Blob position = arrival direction (same coordinate system as MPC)
-        phi_idx   = int(-phi_r[idx]   + 180) * image_scale
-        theta_idx = int( theta_r[idx]       ) * image_scale
-
-        xmin = max(0, phi_idx   - size_x // 2)
-        xmax = min(360 * image_scale, phi_idx   + size_x // 2 + 1)
-        ymin = max(0, theta_idx - size_y // 2)
-        ymax = min(180 * image_scale, theta_idx + size_y // 2 + 1)
-
-        gauss_xmin = max(0, size_x // 2 - phi_idx)
-        gauss_xmax = min(size_x, 360 * image_scale - phi_idx + size_x // 2)
-        gauss_ymin = max(0, size_y // 2 - theta_idx)
-        gauss_ymax = min(size_y, 180 * image_scale - theta_idx + size_y // 2)
-
-        if (xmax > xmin) and (ymax > ymin):
-            s = path_dot[gauss_xmin:gauss_xmax, gauss_ymin:gauss_ymax]
-            if s.shape == (xmax - xmin, ymax - ymin):
-                img_rgb[xmin:xmax, ymin:ymax, 0] += s * r_value  # R = elevation-weighted amp
-                img_rgb[xmin:xmax, ymin:ymax, 1] += s * g_value  # G = azimuth-weighted amp
-                img_rgb[xmin:xmax, ymin:ymax, 2] += s            # B = amplitude reference
-
-    # dB conversion per channel (same convention as plot_spatial_spectrum)
     for c in range(3):
         ch = img_rgb[:, :, c]
         nz = ch > 0
@@ -287,7 +268,7 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
             ch[:] = -160.0
         img_rgb[:, :, c] = ch
 
-    return img_rgb  # shape: (360*scale, 180*scale, 3)
+    return img_rgb
 
 
 def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, kernel_sigma=3, delay_max_ns=200):
@@ -298,54 +279,49 @@ def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, ker
       B = path amplitude (same as G — duplicated for visual balance)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
     """
-    theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi  # arrival elevation [deg]
-    phi_r   = path_instance.phi_r.numpy()[0, 0, 0, :]   * 180 / np.pi  # arrival azimuth   [deg]
-    amps    = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])      # path amplitudes
-    tau_ns  = path_instance.tau.numpy()[0, 0, 0, :] * 1e9               # seconds → nanoseconds
+    theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi
+    phi_r = path_instance.phi_r.numpy()[0, 0, 0, :] * 180 / np.pi
+    amps = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])
+    tau_ns = path_instance.tau.numpy()[0, 0, 0, :] * 1e9
 
     if amps.size == 0:
-        return np.ones((180 * image_scale, 360 * image_scale, 3)) * -160.0
+        return np.ones((360 * image_scale, 180 * image_scale, 3)) * -160.0
 
-    img_rgb = np.zeros((360 * image_scale, 180 * image_scale, 3))
+    mask = amps > 1e-9
+    if not np.any(mask):
+        return np.ones((360 * image_scale, 180 * image_scale, 3)) * -160.0
 
-    sigma_x, sigma_y = kernel_sigma, kernel_sigma
-    size_x = int(kernel_size * sigma_x) | 1
-    size_y = int(kernel_size * sigma_y) | 1
+    amps = amps[mask]
+    theta_r = theta_r[mask]
+    phi_r = phi_r[mask]
+    tau_ns = tau_ns[mask]
+
+    r_values = np.interp(tau_ns, (0, delay_max_ns), (0, 1))
+
+    img_shape = (360 * image_scale, 180 * image_scale)
+    phi_idx = np.clip(((-phi_r + 180) * image_scale).astype(int), 0, img_shape[0] - 1)
+    theta_idx = np.clip((theta_r * image_scale).astype(int), 0, img_shape[1] - 1)
+    flat_idx = phi_idx * img_shape[1] + theta_idx
+
+    r_img = np.bincount(flat_idx, weights=amps * r_values, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    g_img = np.bincount(flat_idx, weights=amps, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    b_img = np.bincount(flat_idx, weights=amps, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+
+    size_x = int(kernel_size * kernel_sigma) | 1
+    size_y = int(kernel_size * kernel_sigma) | 1
     x = np.linspace(-size_x // 2, size_x // 2, size_x)
     y = np.linspace(-size_y // 2, size_y // 2, size_y)
     x, y = np.meshgrid(x, y)
-    gauss_kernel = np.exp(-(x**2 / (2 * sigma_x**2) + y**2 / (2 * sigma_y**2)))
+    gauss_kernel = np.exp(-(x**2 / (2 * kernel_sigma**2) + y**2 / (2 * kernel_sigma**2)))
+    gauss_kernel /= np.sum(gauss_kernel)
 
-    for idx, amp in enumerate(amps):
-        if amp < 1e-9:
-            continue
+    from scipy.ndimage import convolve
+    r_img = convolve(r_img, gauss_kernel, mode='constant', cval=0.0)
+    g_img = convolve(g_img, gauss_kernel, mode='constant', cval=0.0)
+    b_img = convolve(b_img, gauss_kernel, mode='constant', cval=0.0)
 
-        # Normalize delay: 0 ns → R=0, delay_max_ns → R=1
-        r_value = np.interp(tau_ns[idx], (0, delay_max_ns), (0, 1))
+    img_rgb = np.stack([r_img, g_img, b_img], axis=-1)
 
-        path_dot = gauss_kernel * amp / np.sum(gauss_kernel)
-
-        phi_idx   = int(-phi_r[idx]   + 180) * image_scale
-        theta_idx = int( theta_r[idx]       ) * image_scale
-
-        xmin = max(0, phi_idx   - size_x // 2)
-        xmax = min(360 * image_scale, phi_idx   + size_x // 2 + 1)
-        ymin = max(0, theta_idx - size_y // 2)
-        ymax = min(180 * image_scale, theta_idx + size_y // 2 + 1)
-
-        gauss_xmin = max(0, size_x // 2 - phi_idx)
-        gauss_xmax = min(size_x, 360 * image_scale - phi_idx + size_x // 2)
-        gauss_ymin = max(0, size_y // 2 - theta_idx)
-        gauss_ymax = min(size_y, 180 * image_scale - theta_idx + size_y // 2)
-
-        if (xmax > xmin) and (ymax > ymin):
-            s = path_dot[gauss_xmin:gauss_xmax, gauss_ymin:gauss_ymax]
-            if s.shape == (xmax - xmin, ymax - ymin):
-                img_rgb[xmin:xmax, ymin:ymax, 0] += s * r_value  # R = delay-encoded amp
-                img_rgb[xmin:xmax, ymin:ymax, 1] += s            # G = amplitude reference
-                img_rgb[xmin:xmax, ymin:ymax, 2] += s            # B = amplitude reference
-
-    # dB conversion per channel
     for c in range(3):
         ch = img_rgb[:, :, c]
         nz = ch > 0
@@ -356,7 +332,7 @@ def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, ker
             ch[:] = -160.0
         img_rgb[:, :, c] = ch
 
-    return img_rgb  # shape: (360*scale, 180*scale, 3)
+    return img_rgb
 
 
 def plot_phase_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
@@ -381,45 +357,41 @@ def plot_phase_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigm
     amp = np.abs(a_complex)
     phase = np.angle(a_complex)
 
-    img_rgb = np.zeros((360 * image_scale, 180 * image_scale, 3), dtype=np.float32)
+    mask = amp > 1e-9
+    if not np.any(mask):
+        return np.ones((180 * image_scale, 360 * image_scale, 3)) * -160.0
 
-    sigma_x, sigma_y = kernel_sigma, kernel_sigma
-    size_x = int(kernel_size * sigma_x) | 1
-    size_y = int(kernel_size * sigma_y) | 1
+    amp = amp[mask]
+    phase = phase[mask]
+    theta_r = theta_r[mask]
+    phi_r = phi_r[mask]
+
+    r_values = np.cos(phase)
+    g_values = np.sin(phase)
+
+    img_shape = (360 * image_scale, 180 * image_scale)
+    phi_idx = np.clip(((-phi_r + 180) * image_scale).astype(int), 0, img_shape[0] - 1)
+    theta_idx = np.clip((theta_r * image_scale).astype(int), 0, img_shape[1] - 1)
+    flat_idx = phi_idx * img_shape[1] + theta_idx
+
+    r_img = np.bincount(flat_idx, weights=amp * r_values, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    g_img = np.bincount(flat_idx, weights=amp * g_values, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+    b_img = np.bincount(flat_idx, weights=amp, minlength=img_shape[0] * img_shape[1]).reshape(img_shape)
+
+    size_x = int(kernel_size * kernel_sigma) | 1
+    size_y = int(kernel_size * kernel_sigma) | 1
     x = np.linspace(-size_x // 2, size_x // 2, size_x)
     y = np.linspace(-size_y // 2, size_y // 2, size_y)
     x, y = np.meshgrid(x, y)
-    gauss_kernel = np.exp(-(x**2 / (2 * sigma_x**2) + y**2 / (2 * sigma_y**2)))
+    gauss_kernel = np.exp(-(x**2 / (2 * kernel_sigma**2) + y**2 / (2 * kernel_sigma**2)))
+    gauss_kernel /= np.sum(gauss_kernel)
 
-    for idx, a_val in enumerate(amp):
-        if a_val < 1e-9:
-            continue
+    from scipy.ndimage import convolve
+    r_img = convolve(r_img, gauss_kernel, mode='constant', cval=0.0)
+    g_img = convolve(g_img, gauss_kernel, mode='constant', cval=0.0)
+    b_img = convolve(b_img, gauss_kernel, mode='constant', cval=0.0)
 
-        r_value = np.cos(phase[idx])
-        g_value = np.sin(phase[idx])
-
-        path_dot = gauss_kernel * a_val / np.sum(gauss_kernel)
-
-        phi_idx = int(-phi_r[idx] + 180) * image_scale
-        theta_idx = int(theta_r[idx]) * image_scale
-
-        xmin = max(0, phi_idx - size_x // 2)
-        xmax = min(360 * image_scale, phi_idx + size_x // 2 + 1)
-        ymin = max(0, theta_idx - size_y // 2)
-        ymax = min(180 * image_scale, theta_idx + size_y // 2 + 1)
-
-        gauss_xmin = max(0, size_x // 2 - phi_idx)
-        gauss_xmax = min(size_x, 360 * image_scale - phi_idx + size_x // 2)
-        gauss_ymin = max(0, size_y // 2 - theta_idx)
-        gauss_ymax = min(size_y, 180 * image_scale - theta_idx + size_y // 2)
-
-        if (xmax > xmin) and (ymax > ymin):
-            s = path_dot[gauss_xmin:gauss_xmax, gauss_ymin:gauss_ymax]
-            if s.shape == (xmax - xmin, ymax - ymin):
-                img_rgb[xmin:xmax, ymin:ymax, 0] += s * r_value
-                img_rgb[xmin:xmax, ymin:ymax, 1] += s * g_value
-                img_rgb[xmin:xmax, ymin:ymax, 2] += s
-
+    img_rgb = np.stack([r_img, g_img, b_img], axis=-1)
     return img_rgb
 
 

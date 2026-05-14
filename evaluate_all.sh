@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Directory containing the target images
-TARGET_DIR="/home/ved/Ved/Project_1/localisation_frames_3.5ghz_2"
+TARGET_DIR="/home/ved/Ved/Project_1/localisation_frames_3.5ghz"
 
 # Model path and iteration arguments
 MODEL_PATH="RF-3DGS/output/rf_model_delay_3.5ghz"
@@ -16,7 +16,7 @@ echo ""
 
 # Print Table Header to stdout
 printf "%-25s | %-25s | %-10s | %-10s | %-10s\n" "GT Pos (X,Y,Z)" "Est Pos (X,Y,Z)" "Yaw (°)" "Error (m)" "Time (s)"
-printf "%s\n" "----------------------------------------------------------------------------------------------------------"
+printf "%s\n" "-------------------------------------------------------------------------------------------------"
 
 # Write header to CSV
 echo "GT_X,GT_Y,GT_Z,Est_X,Est_Y,Est_Z,Yaw,Error,Time_s,Filename" > "$RESULTS_CSV"
@@ -68,6 +68,7 @@ for img in "$TARGET_DIR"/*.png; do
         else
            est_str="${est_x}, ${est_y}, ${est_z}"
         fi
+        
         err_str="${error:-N/A}"
         yaw_str="${yaw:-N/A}"
         time_str="${time_s:-N/A}"

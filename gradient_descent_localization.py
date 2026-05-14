@@ -17,6 +17,7 @@ import math
 import time
 from argparse import ArgumentParser
 from scipy.spatial.transform import Rotation as R
+from scipy.stats import chi2
 from tqdm import tqdm
 import torchvision
 
@@ -187,7 +188,6 @@ def compute_loss(rendered, target, lpips_net, lambda_weight=0.6):
     loss = (1.0 - lambda_weight) * lpips_val + lambda_weight * (1.0 - ssim_value)
     
     return loss
-
 
 
 def load_cameras_txt(camera_file):
@@ -370,7 +370,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
     pbar.close()
     
     optimized_position = np.array([x.item(), y.item(), z.item()])
-    
+
     return optimized_position, final_target_yaw, loss_history
 
 def main():
@@ -462,6 +462,7 @@ def main():
     
     if gt_pos is not None:
         dist_error = np.sqrt(np.sum((optimized_position - gt_pos)**2))
+        
         print(f"\n=== ACCURACY METRICS ===")
         print(f"  Real Position (Ground Truth): X={gt_pos[0]:.4f}m, Y={gt_pos[1]:.4f}m, Z={gt_pos[2]:.4f}m")
         print(f"  Distance from Real Position (Error): {dist_error:.6f} meters")

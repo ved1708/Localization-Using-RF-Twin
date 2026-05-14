@@ -19,19 +19,28 @@ h1 { font-size: 18px; font-weight: 500; color: #e2e2e8; margin-bottom: 4px; }
 .mv.bad  { color: #E24B4A; }
 .mv.dim  { color: #555; }
 
-.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.panels { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
 .panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; overflow: hidden; }
-.panel-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 6px; border-bottom: 0.5px solid #2a2a36; display: flex; justify-content: space-between; align-items: center; }
+.panel-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px 6px; border-bottom: 0.5px solid #2a2a36; display: flex; justify-content: flex-start; align-items: center; gap: 8px; }
 .panel-head .badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; }
 .badge.true-badge  { background: #1a2e3a; color: #5DCAA5; border: 0.5px solid #0F6E56; }
 .badge.pred-badge  { background: #2a1e30; color: #AFA9EC; border: 0.5px solid #534AB7; }
-.canvas-wrap { position: relative; padding: 8px 8px 8px 8px; display: flex; gap: 6px; }
-canvas.pc { border-radius: 6px; background: #13131a; display: block; }
+.canvas-wrap { position: relative; padding: 8px; display: grid; grid-template-columns: minmax(0, 1fr) 160px 320px; gap: 12px; align-items: start; }
+.viz-container { display: flex; gap: 6px; min-width: 0; }
+.middle-panel { display: flex; flex-direction: column; gap: 12px; width: 160px; }
+.right-panel { display: flex; flex-direction: column; gap: 12px; width: 320px; }
+.latest-pts { width: 100%; }
+.err-panel, .log-panel { width: 100%; }
+canvas.pc { border-radius: 6px; background: #13131a; display: block; width: 100%; max-width: 100%; height: auto; }
+.latest-pts { display: flex; flex-direction: column; gap: 6px; }
+.pt-box { background: #13131a; border-radius: 4px; padding: 6px; border: 0.5px solid #2a2a36; font-size: 10px; color: #ccc; }
+.pt-box-title { color: #888; margin-bottom: 4px; font-weight: bold; border-bottom: 0.5px solid #2a2a36; padding-bottom: 2px; }
+.pt-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
 
-.bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.err-panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; padding: 12px 14px; }
+.bottom-row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.err-panel { background: #1a1a22; border-radius: 10px; border: 0.5px solid #2a2a36; padding: 12px 14px; min-height: 100px; }
 .err-panel .ep-head { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
-.err-bars { display: flex; flex-direction: column; gap: 5px; max-height: 160px; overflow-y: auto; }
+.err-bars { display: flex; flex-direction: column; gap: 5px; max-height: 200px; overflow-y: auto; }
 .ebr { display: flex; align-items: center; gap: 8px; font-size: 11px; }
 .ebr .pl { color: #666; min-width: 32px; }
 .ebr .bg { flex: 1; background: #13131a; border-radius: 3px; height: 10px; overflow: hidden; }
@@ -72,7 +81,7 @@ canvas.cb { border-radius: 3px; }
 <body>
 
 <h1>RF-3DGS Localisation Pipeline</h1>
-<p class="subtitle">7 × 5 × 3 m room · delay spectrum · true vs predicted path</p>
+<p class="subtitle">7 x 5 x 3 m room · delay spectrum · true vs predicted path</p>
 
 <div class="status-bar">
   <div class="dot waiting" id="dot"></div>
@@ -85,47 +94,54 @@ canvas.cb { border-radius: 3px; }
 
 <div class="metrics-row">
   <div class="mc"><div class="ml">Points</div><div class="mv dim" id="m-pts">0 / —</div></div>
-  <div class="mc"><div class="ml">Latest error</div><div class="mv dim" id="m-last">—</div></div>
+  <div class="mc"><div class="ml">ATE </div><div class="mv dim" id="m-last">—</div></div>
   <div class="mc"><div class="ml">Localization Time</div><div class="mv dim" id="m-time">—</div></div>
-  <div class="mc"><div class="ml">RMSE (final)</div><div class="mv dim" id="m-rmse">—</div></div>
+  <div class="mc">
+    <div class="ml">RMSE <span style="color:#666;font-weight:normal;">|</span> Avg Time</div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="mv dim" id="m-rmse">—</div>
+      <div style="width:1px; height:20px; background:#2a2a36;"></div>
+      <div class="mv dim" id="m-avgtime">—</div>
+    </div>
+  </div>
 </div>
 
 <div class="panels">
   <div class="panel">
-    <div class="panel-head">True path <span class="badge true-badge">ground truth</span></div>
+    <div class="panel-head">Paths <span class="badge true-badge">ground truth ━</span> <span class="badge pred-badge">pipeline output ╌</span></div>
     <div class="canvas-wrap">
-      <canvas class="pc" id="c-true" width="560" height="310"></canvas>
-      <div class="colorbar-wrap">
-        <div class="cb-top">3m</div>
-        <canvas class="cb" id="cb" width="14" height="250"></canvas>
-        <div class="cb-bot">0m</div>
-        <div class="cb-lbl">height Z</div>
+      <div class="viz-container">
+        <canvas class="pc" id="c-combined" width="740" height="380"></canvas>
+        <div class="colorbar-wrap">
+          <div class="cb-top">3m</div>
+          <canvas class="cb" id="cb" width="14" height="250"></canvas>
+          <div class="cb-bot">0m</div>
+          <div class="cb-lbl">height Z</div>
+        </div>
+      </div>
+      <div class="middle-panel">
+        <div class="latest-pts" id="pts-list">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="err-panel">
+          <div class="ep-head">Per-point translation error (m)</div>
+          <div class="err-bars" id="err-bars"><span style="font-size:11px;color:#444;">No data yet</span></div>
+        </div>
+        <div class="log-panel">
+          <div class="lp-head">Pipeline log</div>
+          <div class="log-lines" id="log-lines"><span style="color:#444;">Waiting...</span></div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="panel">
-    <div class="panel-head">Predicted path <span class="badge pred-badge">pipeline output</span></div>
-    <div class="canvas-wrap">
-      <canvas class="pc" id="c-pred" width="560" height="310"></canvas>
-      <div style="width:20px;"></div>
-    </div>
-  </div>
 </div>
 
-<div class="bottom-row">
-  <div class="err-panel">
-    <div class="ep-head">Per-point translation error (m)</div>
-    <div class="err-bars" id="err-bars"><span style="font-size:11px;color:#444;">No data yet</span></div>
-  </div>
-  <div class="log-panel">
-    <div class="lp-head">Pipeline log</div>
-    <div class="log-lines" id="log-lines"><span style="color:#444;">Waiting...</span></div>
-  </div>
-</div>
 
 <script>
 const ROOM = { W: 7, D: 5, H: 3 };
-const CW = 560, CH = 310;
+const CW = 740, CH = 380;
 const PAD = { l: 30, r: 8, t: 12, b: 24 };
 const sx = (CW - PAD.l - PAD.r) / ROOM.W;
 const sy = (CH - PAD.t - PAD.b) / ROOM.D;
@@ -170,28 +186,48 @@ function drawRoom(ctx) {
   for (let gy = 0; gy <= ROOM.D; gy++) ctx.fillText(gy, PAD.l-3, ty(gy)+3);
 }
 
-function drawPath(ctx, pts) {
+function drawPath(ctx, pts, style = 'solid', drawCircles = true) {
   if (!pts.length) return;
+  ctx.setLineDash(style === 'dashed' ? [5, 5] : []);
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i-1], b = pts[i];
     ctx.beginPath(); ctx.moveTo(tx(a.x), ty(a.y)); ctx.lineTo(tx(b.x), ty(b.y));
     ctx.strokeStyle = zColor(b.z, 0.75); ctx.lineWidth = 2; ctx.stroke();
   }
-  pts.forEach((p, i) => {
-    ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), i === 0 ? 6 : 4.5, 0, Math.PI*2);
-    ctx.fillStyle = zColor(p.z); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = 'bold 8px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(i+1, tx(p.x), ty(p.y)+3);
-  });
+  ctx.setLineDash([]);
+  if (drawCircles === true || drawCircles === 'circle') {
+    pts.forEach((p, i) => {
+      ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), i === 0 ? 6 : 4.5, 0, Math.PI*2);
+      ctx.fillStyle = zColor(p.z); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = 'bold 8px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(i+1, tx(p.x), ty(p.y)+3);
+    });
+  } else if (drawCircles === 'dot') {
+    pts.forEach((p, i) => {
+      ctx.beginPath(); ctx.arc(tx(p.x), ty(p.y), 2.5, 0, Math.PI*2);
+      ctx.fillStyle = zColor(p.z); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 0.5; ctx.stroke();
+    });
+  }
+}
+
+function getLatestPtsHtml(pts, label) {
+  const n = pts.length;
+  const pList = n >= 2 ? [pts[n-2], pts[n-1]] : (n === 1 ? [pts[0]] : []);
+  const idxList = n >= 2 ? [n-1, n] : (n === 1 ? [n] : []);
+  let pointsText = pList.map((p, i) => `${idxList[i]}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`).join('<br>');
+  return `<div class="pt-box">
+    <div class="pt-box-title">${label}</div>
+    <div style="margin-top:4px;">${pointsText}</div>
+  </div>`;
 }
 
 function ccls(e) { return e < 0.3 ? 'good' : e < 0.7 ? 'warn' : 'bad'; }
 
-const ctxT = document.getElementById('c-true').getContext('2d');
-const ctxP = document.getElementById('c-pred').getContext('2d');
-drawColorbar(); drawRoom(ctxT); drawRoom(ctxP);
+const ctxCombined = document.getElementById('c-combined').getContext('2d');
+drawColorbar(); drawRoom(ctxCombined);
 
 let lastPointCount = 0;
 
@@ -227,15 +263,25 @@ async function poll() {
     document.getElementById('m-pts').className = 'mv' + (n > 0 ? '' : ' dim');
 
     if (errs.length) {
-      const last = errs[errs.length-1];
-      document.getElementById('m-last').textContent = last.toFixed(3) + ' m';
-      document.getElementById('m-last').className = 'mv ' + ccls(last);
+      const avgErr = errs.reduce((a, b) => a + b, 0) / errs.length;
+      document.getElementById('m-last').textContent = avgErr.toFixed(3) + ' m';
+      document.getElementById('m-last').className = 'mv ' + ccls(avgErr);
       
       const times = d.times || [];
       if (times.length > 0) {
         const last_time = times[times.length-1];
         document.getElementById('m-time').textContent = last_time.toFixed(2) + ' s';
         document.getElementById('m-time').className = 'mv ' + (last_time < 0.5 ? 'good' : last_time < 1.0 ? 'warn' : 'dim');
+
+        let avg_time;
+        if (times.length > 1) {
+          const subsequent_times = times.slice(1);
+          avg_time = subsequent_times.reduce((a, b) => a + b, 0) / subsequent_times.length;
+        } else {
+          avg_time = times[0];
+        }
+        document.getElementById('m-avgtime').textContent = avg_time.toFixed(2) + ' s';
+        document.getElementById('m-avgtime').className = 'mv ' + (avg_time < 0.5 ? 'good' : avg_time < 1.0 ? 'warn' : 'dim');
       }
     }
     if (d.rmse !== null && d.rmse !== undefined) {
@@ -247,8 +293,10 @@ async function poll() {
     const totalPts = tp.length + pp.length;
     if (totalPts !== lastPointCount) {
       lastPointCount = totalPts;
-      drawRoom(ctxT); drawPath(ctxT, tp);
-      drawRoom(ctxP); drawPath(ctxP, pp);
+      drawRoom(ctxCombined); 
+      drawPath(ctxCombined, tp, 'solid', 'dot');
+      drawPath(ctxCombined, pp, 'dashed', 'circle');
+      document.getElementById('pts-list').innerHTML = getLatestPtsHtml(tp, 'True') + getLatestPtsHtml(pp, 'Pred');
     }
 
     // error bars
