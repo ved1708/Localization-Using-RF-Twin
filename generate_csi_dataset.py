@@ -545,8 +545,10 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
     spectrum_dir = output_dir
     os.makedirs(spectrum_dir, exist_ok=True)
     
-    if 'tx' in scene.transmitters: scene.remove('tx')
-    scene.add(Transmitter(name='tx', position=tx_loc))
+    if 'tx' in scene.transmitters:
+        scene.transmitters['tx'].position = tx_loc
+    else:
+        scene.add(Transmitter(name='tx', position=tx_loc))
 
     width, height = 600, 600  # For 600×400: H-FOV=120, V-FOV≈98
     h_fov_deg = 120  # Horizontal FOV
@@ -567,10 +569,10 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
     cameras = {camera_id: Camera(camera_id, "PINHOLE", width, height, [fx, fy, cx, cy])}
     images = {}
     
-    # Add Receiver ONCE
-    if 'rx' in scene.receivers: scene.remove('rx')
-    rx = Receiver(name='rx', position=[0,0,0])
-    scene.add(rx)
+    # Add Receiver once and then update its position for every generated view.
+    if 'rx' not in scene.receivers:
+        scene.add(Receiver(name='rx', position=[0,0,0]))
+    rx = scene.receivers['rx']
 
     # 1. Determine normalization stats.
     # spec_max = None
@@ -753,6 +755,8 @@ if __name__ == "__main__":
                         help="Generate RF image for a single RX position (x y z)")
     parser.add_argument("--rx-pos-file", type=str, default=None,
                         help="Text file containing multiple RX positions (x y z per line)")
+    parser.add_argument("--interactive", action="store_true",
+                        help="Run in stdin-driven interactive generation mode")
     parser.add_argument("--yaw", type=float, default=None,
                         help="Generate RF image for a single YAW angle (in degrees)")
     parser.add_argument("--spec-min", type=float, default=None, help="Normalization min (dB) for non-phase")
@@ -846,6 +850,32 @@ if __name__ == "__main__":
             print(f"Warning: Object {obj_name} using default material.")
 
     # --- Sampling Campaign ---
+    if args.interactive:
+        out_dir = args.output_dir or "localization_frames"
+        os.makedirs(out_dir, exist_ok=True)
+        print("READY", flush=True)
+        import sys
+        tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position (ceiling center)
+        phase_params = None
+        if args.rg_scale is not None or args.b_lo_db is not None or args.b_hi_db is not None:
+            phase_params = {
+                "rg_scale": args.rg_scale,
+                "b_lo_db": args.b_lo_db,
+                "b_hi_db": args.b_hi_db
+            }
+        for line in sys.stdin:
+            parts = line.strip().split()
+            if len(parts) < 3:
+                continue
+            rx_pos = [float(parts[0]), float(parts[1]), float(parts[2])]
+            rx_yaw = float(parts[3]) if len(parts) >= 4 else None
+            print(f"PROCESSING {rx_pos[0]} {rx_pos[1]} {rx_pos[2]} [Auto-yaw]", flush=True)
+            generate_ideal_dataset(scene, [rx_pos], tx_pos, out_dir, spectrum_type=args.spectrum_type,
+                                   spec_min=args.spec_min, spec_max=args.spec_max,
+                                   phase_norm_params=phase_params, rx_yaw=rx_yaw)
+            print("DONE", flush=True)
+        sys.exit(0)
+
     if args.rx_pos is not None:
         rx_locs = [args.rx_pos]
         print(f"Using single RX position from CLI: {args.rx_pos}")
@@ -867,12 +897,6 @@ if __name__ == "__main__":
     
     tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position (ceiling center)
     
-    print(f"Starting dataset generation for {len(rx_locs)} positions...")
-    # spectrum_type options:
-    #   'mpc'   — MPC arrival-angle spectrum (single-channel grayscale)
-    #   'aod'   — AoD departure-angle spectrum (RGB: R=elev, G=azim, B=amp)
-    #   'delay' — Propagation-delay spectrum  (RGB: R=delay, G=B=amp)
-    #   'phase' — Phase-aware spectrum        (RGB: R=A*cos(phi), G=A*sin(phi), B=A)
     phase_params = None
     if args.rg_scale is not None or args.b_lo_db is not None or args.b_hi_db is not None:
         phase_params = {
@@ -881,6 +905,7 @@ if __name__ == "__main__":
             "b_hi_db": args.b_hi_db
         }
 
+    print(f"Starting dataset generation for {len(rx_locs)} positions...")
     if args.ideal:
         out_dir = args.output_dir or ("localization_frames" if args.rx_pos else f"dataset_ideal_{args.spectrum_type}")
         generate_ideal_dataset(scene, rx_locs, tx_pos, out_dir, spectrum_type=args.spectrum_type, 

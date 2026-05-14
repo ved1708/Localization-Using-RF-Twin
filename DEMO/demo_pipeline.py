@@ -135,34 +135,61 @@ def main():
     }
     write_results(args.results_file, results)
 
+    generator_proc = None
     for idx, wp in enumerate(waypoints):
         print(f"\n{'='*60}", flush=True)
         print(f"Waypoint {idx+1}/{len(waypoints)}: x={wp['x']:.2f} y={wp['y']:.2f} z={wp['z']:.2f} yaw={wp['yaw']:.1f}°", flush=True)
         results["log"].append(f"[{idx+1}/{len(waypoints)}] Processing ({wp['x']:.2f}, {wp['y']:.2f}, {wp['z']:.2f})")
 
         # ── Step 1: generate CSI spectrum via docker ───────────────────────
+        if generator_proc is None:
+            results["log"].append(f"Starting interactive CSI generator in Docker...")
+            write_results(args.results_file, results)
+            gen_cmd = [
+                "docker", "exec",
+                "-i",
+                "-w", args.docker_workdir,
+                args.docker_container,
+                "python3", "generate_csi_dataset.py",
+                "--interactive",
+                "--scene", args.scene,
+                "--spectrum-type", args.spectrum_type,
+                "--spec-min", str(args.spec_min),
+                "--spec-max", str(args.spec_max),
+                "--output-dir", args.output_dir,
+            ]
+            print(f"  $ {' '.join(gen_cmd)}", flush=True)
+            generator_proc = subprocess.Popen(
+                gen_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+            )
+            while True:
+                line = generator_proc.stdout.readline()
+                if not line:
+                    print("Failed to start generator.", file=sys.stderr)
+                    sys.exit(1)
+                print(f"[Generator] {line.strip()}")
+                if line.strip() == "READY":
+                    break
 
-        # exact command: docker exec -w /tf/Project_1 magical_margulis python3 generate_csi_dataset.py ...
-        # output-dir is inside the container — use same name, map via mounted volume
-        gen_cmd = [
-            "docker", "exec",
-            "-w", args.docker_workdir,
-            args.docker_container,
-            "python3", "generate_csi_dataset.py",
-            "--rx-pos", str(wp["x"]), str(wp["y"]), str(wp["z"]),
-            "--spectrum-type", args.spectrum_type,
-            "--spec-min", str(args.spec_min),
-            "--spec-max", str(args.spec_max),
-            "--output-dir", args.output_dir,
-        ]
-        results["log"].append("  → Generating CSI spectrum (docker)...")
+        generator_proc.stdin.write(f"{wp['x']} {wp['y']} {wp['z']}\n")
+        generator_proc.stdin.flush()
+        results["log"].append("  → Generating CSI spectrum (interactive docker)...")
         write_results(args.results_file, results)
 
-        stdout, stderr, rc = run(gen_cmd, cwd=str(project))
-        if rc != 0:
-            results["log"].append(f"  ✗ generate_csi_dataset.py failed (rc={rc})")
-            write_results(args.results_file, results)
-            continue
+        while True:
+            line = generator_proc.stdout.readline()
+            if not line:
+                results["log"].append("  ✗ Generator terminated unexpectedly")
+                write_results(args.results_file, results)
+                sys.exit(1)
+            print(f"[Generator] {line.strip()}", flush=True)
+            if line.strip() == "DONE":
+                break
 
         # generated image lands in output-dir on the host (shared volume)
         # script names file after position e.g. delay_0.40_0.40_1.20.png — grab latest png
@@ -254,6 +281,11 @@ def main():
     results["status"] = "complete"
     results["log"].append(f"\n✓ Done. {n} points. RMSE = {results['rmse']} m")
     write_results(args.results_file, results)
+
+    if generator_proc is not None:
+        generator_proc.stdin.close()
+        generator_proc.wait()
+
     print(f"\nDone! RMSE = {results['rmse']} m  |  Results → {args.results_file}", flush=True)
 
 
