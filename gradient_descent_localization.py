@@ -24,6 +24,26 @@ import torchvision
 # Add RF-3DGS to path since we moved the script out
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "RF-3DGS"))
 
+# Import grid_search logic directly to avoid subprocess overhead
+import importlib
+_gs_mod = None
+
+def _get_grid_search_module():
+    global _gs_mod
+    if _gs_mod is None:
+        import grid_search_localization as gsm
+        _gs_mod = gsm
+    return _gs_mod
+
+# ── ADD module-level LPIPS cache ───────────────────────────────────────────
+_lpips_cache = None
+
+def get_lpips():
+    global _lpips_cache
+    if _lpips_cache is None:
+        _lpips_cache = LPIPS(net_type='alex').cuda()
+    return _lpips_cache
+
 # RF-3DGS imports
 from arguments import ModelParams, PipelineParams, get_combined_args
 from gaussian_renderer import GaussianModel, render
@@ -98,7 +118,140 @@ def pose_to_matrix(position, yaw_rad):
     return R_w2c, T_w2c
 
 
-def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None):
+def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None, fast_mode=False):
+    """
+    Runs grid search logic in-process (no subprocess) to avoid Python boot overhead.
+    Falls back to subprocess only if direct import fails.
+    In fast_mode with coarse estimates, skips full grid search and returns single candidate.
+    """
+    print("\n" + "="*60)
+    if coarse_x is not None:
+        if fast_mode:
+            print(f"STEP 1: [FAST MODE] Skipping grid search, using last known pose...")
+            # Return immediately with the provided coarse estimate
+            candidates = [((coarse_x, coarse_y, coarse_z), 0.0)]
+            print(f"\n" + "="*60)
+            print(f"STEP 2: USING PROVIDED COARSE ESTIMATE")
+            print("="*60)
+            for i, c in enumerate(candidates):
+                print(f"  Estimate: X={c[0][0]:.4f}m, Y={c[0][1]:.4f}m, Z={c[0][2]:.4f}m, Yaw={c[1]:.2f}°")
+            print("="*60)
+            return candidates
+        else:
+            print(f"STEP 1: Sub-Grid Search around ({coarse_x:.2f}, {coarse_y:.2f}, {coarse_z:.2f})...")
+    else:
+        print("STEP 1: Grid Search for Coarse Pose Estimation...")
+    print("="*60)
+
+    try:
+        gsm = _get_grid_search_module()
+
+        # Build the same argument namespace grid_search_localization.main() would parse
+        import argparse
+        gs_args = argparse.Namespace(
+            model_path=model_path,
+            iteration=iteration,
+            target_image=target_image,
+            spacing=0.5,
+            coarse_x=coarse_x,
+            coarse_y=coarse_y,
+            coarse_z=coarse_z,
+        )
+
+        # ── replicate what main() does, but return results directly ──
+        x_bound = [0.3, 6.7]
+        y_bound = [0.3, 4.7]
+        z_bound = [0.5, 2.5]
+        x_range = np.arange(x_bound[0], x_bound[1] + 1e-4, gs_args.spacing)
+        y_range = np.arange(y_bound[0], y_bound[1] + 1e-4, gs_args.spacing)
+        z_range = np.arange(z_bound[0], z_bound[1] + 1e-4, gs_args.spacing)
+        yaws = [0, 120, 240]
+
+        _, poses_info = gsm.create_poses(x_range, y_range, z_range, yaws, "grid_search_colmap")
+        rendered_folder = os.path.join(model_path, "custom_renders")
+
+        def check_and_render_subset(subset_poses, label):
+            os.makedirs(rendered_folder, exist_ok=True)
+            missing = [p['name'] for p in subset_poses
+                       if not os.path.exists(os.path.join(rendered_folder, p['name']))]
+            if missing:
+                print(f"Missing {len(missing)} {label} renders. Rendering now...")
+                gsm.write_colmap(subset_poses, "grid_search_colmap_subset")
+                subprocess.run([
+                    sys.executable, "render_custom_poses.py",
+                    "-m", model_path,
+                    "--iteration", str(iteration),
+                    "--colmap_dir", "grid_search_colmap_subset",
+                ], check=True)
+            else:
+                print(f"All {len(subset_poses)} {label} renders cached. Skipping render.")
+
+        if coarse_x is not None:
+            neighbor_indices = set()
+            for p in poses_info:
+                px, py, pz = p['position']
+                dist = np.sqrt((px - coarse_x)**2 + (py - coarse_y)**2 + (pz - coarse_z)**2)
+                if dist <= 0.5:
+                    neighbor_indices.add(p['grid_idx'])
+            neighbor_poses = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
+            check_and_render_subset(neighbor_poses, "neighbor")
+            final_results = gsm.evaluate(target_image, rendered_folder, neighbor_poses, fast_ssim_only=False)
+        else:
+            # Full coarse path (anchor → neighbor) — same logic as grid_search_localization.main()
+            anchor_stride = 2
+            anchor_indices = {(ix, iy, iz, it)
+                              for ix in range(0, len(x_range), anchor_stride)
+                              for iy in range(0, len(y_range), anchor_stride)
+                              for iz in range(0, len(z_range), anchor_stride)
+                              for it in range(len(yaws))}
+            anchor_poses = [p for p in poses_info if p['grid_idx'] in anchor_indices]
+            check_and_render_subset(anchor_poses, "anchor")
+            anchor_results = gsm.evaluate(target_image, rendered_folder, anchor_poses, fast_ssim_only=True)
+
+            spatial_best = {}
+            for res in anchor_results:
+                ix, iy, iz, _ = res['grid_idx']
+                key = (ix, iy, iz)
+                if key not in spatial_best or res['error'] < spatial_best[key]['error']:
+                    spatial_best[key] = res
+            best_anchors = sorted(spatial_best.values(), key=lambda r: r['error'])[:2]
+
+            neighbor_indices = set()
+            for anc in best_anchors:
+                ix, iy, iz, _ = anc['grid_idx']
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
+                        for dz in range(-1, 2):
+                            for it in range(len(yaws)):
+                                nx, ny, nz = ix+dx, iy+dy, iz+dz
+                                if 0 <= nx < len(x_range) and 0 <= ny < len(y_range) and 0 <= nz < len(z_range):
+                                    neighbor_indices.add((nx, ny, nz, it))
+            neighbor_poses = [p for p in poses_info if p['grid_idx'] in neighbor_indices]
+            check_and_render_subset(neighbor_poses, "neighbor")
+            final_results = gsm.evaluate(target_image, rendered_folder, neighbor_poses, fast_ssim_only=False)
+
+        # Format output identical to what parse used to read from stdout
+        candidates = [((r['position'][0], r['position'][1], r['position'][2]), float(r['yaw']))
+                      for r in final_results[:5]]
+
+        print(f"\nTop 5 Matches (Full Eval):")
+        for c in candidates:
+            print(f"  Pos ({c[0][0]:.1f},{c[0][1]:.1f},{c[0][2]:.1f}) Yaw: {c[1]:.1f}°")
+
+    except Exception as e:
+        print(f"[warn] In-process grid search failed ({e}), falling back to subprocess...")
+        # Original subprocess fallback preserved exactly
+        return _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x, coarse_y, coarse_z, fast_mode=fast_mode)
+
+    print("\n" + "="*60)
+    print(f"STEP 2: ACQUIRED {len(candidates)} CANDIDATE POSES")
+    print("="*60)
+    for i, c in enumerate(candidates):
+        print(f"  Candidate {i+1}: X={c[0][0]:.4f}m, Y={c[0][1]:.4f}m, Z={c[0][2]:.4f}m, Yaw={c[1]:.2f}°")
+
+    return candidates
+
+def _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None, fast_mode=False):
     """
     Run grid_search_localization.py and parse the output to extract coarse pose.
     Returns: (position_tuple, yaw_deg)
@@ -224,10 +377,10 @@ def extract_gt_from_filename(filename):
 def iterative_optimization_refinement(gaussians, pipeline, background, target_image_tensor, 
                                  coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=100, 
                                  lambda_weight=0.6, fovx=0.8, fovy=0.8, width=600, height=600,
-                                 learning_rate=0.01):
+                                 learning_rate=0.01, fast_mode=False):
                                  
     print("\n" + "="*60)
-    print("STEP 4: Optimization Refinement")
+    print("STEP 4: Optimization Refinement" + (" [FAST MODE]" if fast_mode else ""))
     print("="*60 + "\n")
     
     loss_history = []
@@ -250,7 +403,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
     final_target_yaw = best_candidate_post_phase1_yaw
     yaw_tensor = torch.tensor(np.radians(final_target_yaw), dtype=torch.float32, device="cuda")
     
-    lpips_net = LPIPS(net_type='alex').cuda()
+    lpips_net = get_lpips()
     
     # Pre-compute static matrices outside the evaluation loop for significant speedup
     cy = torch.cos(yaw_tensor)
@@ -281,8 +434,11 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
         P_world = torch.stack([x_val, y_val, z_val])
         T_w2c = -torch.matmul(R_w2c_static, P_world)
         
-        wv_trans = base_wv_trans.clone()
+        wv_trans = base_wv_trans.detach().clone()
+        wv_trans = torch.zeros((4, 4), device="cuda")
+        wv_trans[:3, :3] = R_w2c_T
         wv_trans[3, :3] = T_w2c
+        wv_trans[3, 3] = 1.0
         
         shared_cam.world_view_transform = wv_trans
         shared_cam.full_proj_transform = torch.matmul(wv_trans, projection_matrix)
@@ -297,25 +453,32 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
     best_subgrid_pos = None
     best_subgrid_loss = float('inf')
     
-    # Evaluate 3x3x3 local micro-grid
-    offsets = [-0.25, 0.0, 0.25]
-    for dx in offsets:
-        for dy in offsets:
-            for dz in offsets:
-                tx, ty, tz = x.item() + dx, y.item() + dy, z.item() + dz
-                # Create tensors for evaluation
-                tx_t = torch.tensor(tx, dtype=torch.float32, device="cuda")
-                ty_t = torch.tensor(ty, dtype=torch.float32, device="cuda")
-                tz_t = torch.tensor(tz, dtype=torch.float32, device="cuda")
-                
-                loss_val = evaluate_loss_fw(tx_t, ty_t, tz_t).item()
-                if loss_val < best_subgrid_loss:
-                    best_subgrid_loss = loss_val
-                    best_subgrid_pos = (tx, ty, tz)
+    # Evaluate 3x3x3 local micro-grid ONLY if not in fast mode
+    if fast_mode:
+        # Skip micro-grid search entirely, use coarse estimate directly
+        best_subgrid_pos = (x.item(), y.item(), z.item())
+        best_subgrid_loss = evaluate_loss_fw(x, y, z).item()
+        print(f"[FAST MODE] Skipping micro-grid search. Starting from coarse estimate: ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f})")
+    else:
+        # Original micro-grid search
+        offsets = [-0.25, 0.0, 0.25]
+        for dx in offsets:
+            for dy in offsets:
+                for dz in offsets:
+                    tx, ty, tz = x.item() + dx, y.item() + dy, z.item() + dz
+                    # Create tensors for evaluation
+                    tx_t = torch.tensor(tx, dtype=torch.float32, device="cuda")
+                    ty_t = torch.tensor(ty, dtype=torch.float32, device="cuda")
+                    tz_t = torch.tensor(tz, dtype=torch.float32, device="cuda")
+                    
+                    loss_val = evaluate_loss_fw(tx_t, ty_t, tz_t).item()
+                    if loss_val < best_subgrid_loss:
+                        best_subgrid_loss = loss_val
+                        best_subgrid_pos = (tx, ty, tz)
 
-    print(f"Micro-grid search improved starting position from ({x.item():.3f}, {y.item():.3f}, {z.item():.3f}) "
-          f"to ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f}) "
-          f"with loss {best_subgrid_loss:.4f}")
+        print(f"Micro-grid search improved starting position from ({x.item():.3f}, {y.item():.3f}, {z.item():.3f}) "
+              f"to ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f}) "
+              f"with loss {best_subgrid_loss:.4f}")
 
     # Set our optimizable parameters to the newly found best local sub-grid position
     with torch.no_grad():
@@ -325,33 +488,52 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
 
     print(f"\n--- Full Rx Position Optimization (Fixed at Dir {final_target_yaw}°) ---")
     
-    num_iterations = min(num_iterations, 100)
+    # Adaptive iteration count and parameters based on fast_mode
+    if fast_mode:
+        num_iterations = min(num_iterations, 30)  # Drastically reduce iterations
+        eps = 2e-3  # Larger step for gradient approximation (fewer iterations needed)
+        patience = 2  # Aggressive early stopping
+        grad_skip = 2  # Skip gradient computation every N iterations - use previous gradient
+    else:
+        num_iterations = min(num_iterations, 100)
+        eps = 1e-3
+        patience = 5
+        grad_skip = 1  # Always compute gradient
+    
     pbar = tqdm(total=num_iterations, desc="Optimization")
     
-    eps = 1e-3
-    
-    best_loss = float('inf')
-    patience = 5
-    patience_counter = 0
     min_delta = 1e-4
 
+    best_loss = float('inf')
+    patience_counter = 0
+    prev_grads = [None, None, None]  # Cache gradients for skipping
+    
     for it in range(num_iterations):
         optimizer.zero_grad()
         
         l_center = evaluate_loss_fw(x, y, z)
+        l_item = l_center.item()
         
-        l_x_pos = evaluate_loss_fw(x + eps, y, z)
-        l_y_pos = evaluate_loss_fw(x, y + eps, z)
-        l_z_pos = evaluate_loss_fw(x, y, z + eps)
-        
-        x.grad = (l_x_pos - l_center) / eps
-        y.grad = (l_y_pos - l_center) / eps
-        z.grad = (l_z_pos - l_center) / eps
+        # Gradient computation with adaptive skipping in fast mode
+        if it % grad_skip == 0 or prev_grads[0] is None:
+            l_x_pos = evaluate_loss_fw(x + eps, y, z)
+            l_y_pos = evaluate_loss_fw(x, y + eps, z)
+            l_z_pos = evaluate_loss_fw(x, y, z + eps)
+            
+            x.grad = (l_x_pos - l_center) / eps
+            y.grad = (l_y_pos - l_center) / eps
+            z.grad = (l_z_pos - l_center) / eps
+            
+            prev_grads = [x.grad.clone(), y.grad.clone(), z.grad.clone()]
+        else:
+            # Reuse previous gradients to save 3 renders
+            x.grad = prev_grads[0]
+            y.grad = prev_grads[1]
+            z.grad = prev_grads[2]
         
         optimizer.step()
         scheduler.step()
         
-        l_item = l_center.item()
         loss_history.append(l_item)
         
         pbar.update(1)
@@ -364,7 +546,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
             patience_counter += 1
             
         if patience_counter >= patience:
-            print(f"\nEarly stopping triggered at iteration {it+1}: loss hasn't decreased significantly in {patience} steps.")
+            print(f"\nEarly stopping at iteration {it+1}: loss plateau (threshold={min_delta:.2e})")
             break
         
     pbar.close()
@@ -386,6 +568,7 @@ def main():
     parser.add_argument("--coarse_y", type=float, default=None, help="Optional coarse Y position")
     parser.add_argument("--coarse_z", type=float, default=None, help="Optional coarse Z position")
     parser.add_argument("--coarse_yaw", type=float, default=0.0, help="Optional coarse Yaw (degrees)")
+    parser.add_argument("--fast_mode", action="store_true", help="Enable real-time optimization (skip micro-grid, fewer iterations)")
     
     # In some forks explicit iteration is added, but ModelParams usually has it or pipeline.
     # We will use parse_known_args
@@ -404,9 +587,10 @@ def main():
     coarse_y = getattr(args, 'coarse_y', None)
     coarse_z = getattr(args, 'coarse_z', None)
     coarse_yaw = getattr(args, 'coarse_yaw', 0.0)
+    fast_mode = getattr(args, 'fast_mode', False)
 
     total_start_time = time.time()
-    coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration, coarse_x, coarse_y, coarse_z)
+    coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration, coarse_x, coarse_y, coarse_z, fast_mode=fast_mode)
     
     print("\n" + "="*60)
     print("STEP 3: Loading RF-3DGS Scene and Model for Gradient Descent...")
@@ -445,7 +629,7 @@ def main():
         gaussians, pipeline, background, target_tensor,
         coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=args.num_iterations,
         lambda_weight=args.lambda_weight, fovx=fovx, fovy=fovy, width=width, height=height,
-        learning_rate=args.learning_rate
+        learning_rate=args.learning_rate, fast_mode=fast_mode
     )
     refinement_time = time.time() - start_time
     total_localization_time = time.time() - total_start_time

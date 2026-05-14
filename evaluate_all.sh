@@ -36,10 +36,12 @@ for img in "$TARGET_DIR"/*.png; do
         echo "Evaluating $filename..." >&2
         
         # Run the python script and capture its output
+        # Use --fast_mode for real-time performance
         python gradient_descent_localization.py \
             --target_image "$img" \
             --model_path "$MODEL_PATH" \
-            --iteration "$ITERATION" > "$TMP_OUTPUT" 2>&1
+            --iteration "$ITERATION" \
+            --fast_mode > "$TMP_OUTPUT" 2>&1
             
         # Extract values using grep and awk
         # We use tail to get the final optimization block output
