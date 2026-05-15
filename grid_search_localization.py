@@ -7,12 +7,18 @@ from scipy.spatial.transform import Rotation as R
 from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# POSE GRID CREATION
-# ──────────────────────────────────────────────────────────────────────────────
+_target_feature_cache = {}
+_rendered_feature_cache = {}
+_poses_cache = {}   # keyed by (x_bound, y_bound, z_bound, spacing)
 
 def create_poses(x_range, y_range, z_range, yaws, out_dir):
+    cache_key = (x_range[0], x_range[-1], len(x_range),
+                 y_range[0], y_range[-1], len(y_range),
+                 z_range[0], z_range[-1], len(z_range))
+    
+    if cache_key in _poses_cache:
+        return out_dir, _poses_cache[cache_key]   # skip file I/O entirely
+    
     os.makedirs(out_dir, exist_ok=True)
     images_path  = os.path.join(out_dir, "images.txt")
     cameras_path = os.path.join(out_dir, "cameras.txt")
@@ -55,22 +61,26 @@ def create_poses(x_range, y_range, z_range, yaws, out_dir):
                             'colmap_line': f"{img_id} {qw:.8f} {qx:.8f} {qy:.8f} {qz:.8f} {T_w2c[0]:.8f} {T_w2c[1]:.8f} {T_w2c[2]:.8f} 1 {name}\n"
                         })
                         img_id += 1
-
+    
+    _poses_cache[cache_key] = poses_info
     return out_dir, poses_info
 
+# ──────────────────────────────────────────────────────────────────────────────
+# POSE GRID CREATION
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ──────────────────────────────────────────────────────────────────────────────
-# ROBUST PRE-PROCESSING  (the core fix)
-# ──────────────────────────────────────────────────────────────────────────────
+
+# ────────────────────────────────────
+# ROBUST PRE-PROCESSING  
+# ────────────────────────────────────
 
 def robust_preprocess(img_float, target_size=(48, 48)):
     """
-    Fixed for 600x600 input images.
-    1. Percentile clip  – kills bright/dark outlier noise tiles
-    2. Median blur k=19 – large enough to erase ~15-20px blocky patches
-    3. Morph close      – fills dark holes left after noise removal
-    4. Gaussian blur    – smooth basin for correlation
-    5. INTER_AREA downsample – box-average, suppresses residual noise
+    1. Percentile clip
+    2. Median blur k=19
+    3. Morph close
+    4. Gaussian blur
+    5. INTER_AREA downsample
     """
     amp   = img_float[:, :, 1]
     delay = np.zeros_like(amp)
@@ -93,9 +103,9 @@ def robust_preprocess(img_float, target_size=(48, 48)):
     return clean_channel(amp), clean_channel(delay)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────
 # MULTI-SCALE CORRELATION  (robust to remaining artefacts)
-# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────
 
 def cosine_sim(a, b):
     fa, fb = a.ravel().astype(np.float64), b.ravel().astype(np.float64)
@@ -120,9 +130,9 @@ def multiscale_corr(feat_t, feat_p, scales=((48, 48), (24, 24), (12, 12))):
     return score / total_w
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────
 # HELPERS
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────
 
 def norm_visual(img):
     mx = np.max(img)
@@ -141,25 +151,26 @@ def write_colmap(poses, colmap_dir):
             f.write(p['colmap_line'])
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────
 # EVALUATE
-# ──────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────
 
 def evaluate(target_image_path, rendered_folder, poses_info, fast_ssim_only=False):
     verification_dir = os.path.join(rendered_folder, "verification_normalized")
     os.makedirs(verification_dir, exist_ok=True)
 
-    target_img = cv2.imread(target_image_path)
-    if target_img is None:
-        raise ValueError(f"Could not load target image: {target_image_path}")
-    target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB).astype(np.float32)
-
-    # Pre-compute target features once
-    t_amp, t_delay = robust_preprocess(target_img)
-    t_amp_vis = norm_visual(t_amp)
-
-    cv2.imwrite(os.path.join(verification_dir, "TARGET_amp.png"),   t_amp_vis)
-    cv2.imwrite(os.path.join(verification_dir, "TARGET_delay.png"), norm_visual(t_delay))
+    if target_image_path not in _target_feature_cache:
+        target_img = cv2.imread(target_image_path)
+        if target_img is None:
+            raise ValueError(f"Could not load target image: {target_image_path}")
+        target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB).astype(np.float32)
+        t_amp, t_delay = robust_preprocess(target_img)
+        t_amp_vis = norm_visual(t_amp)
+        cv2.imwrite(os.path.join(verification_dir, "TARGET_amp.png"),   t_amp_vis)
+        cv2.imwrite(os.path.join(verification_dir, "TARGET_delay.png"), norm_visual(t_delay))
+        _target_feature_cache[target_image_path] = (t_amp, t_delay, t_amp_vis)
+    
+    t_amp, t_delay, t_amp_vis = _target_feature_cache[target_image_path]
 
     # Weight configuration for full eval (neighbor search)
     W_AMP   = 0.1
@@ -172,14 +183,16 @@ def evaluate(target_image_path, rendered_folder, poses_info, fast_ssim_only=Fals
         if not os.path.exists(img_path):
             continue
 
-        pred_img = cv2.imread(img_path)
-        if pred_img is None:
-            continue
-        pred_img = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB).astype(np.float32)
-
-        p_amp, p_delay = robust_preprocess(pred_img)
-        p_amp_vis = norm_visual(p_amp)
-        ssim_val  = ssim(t_amp_vis, p_amp_vis, data_range=255)
+        if img_path not in _rendered_feature_cache:
+            pred_img = cv2.imread(img_path)
+            if pred_img is None:
+                continue
+            pred_img = cv2.cvtColor(pred_img, cv2.COLOR_BGR2RGB).astype(np.float32)
+            p_amp, p_delay = robust_preprocess(pred_img)
+            _rendered_feature_cache[img_path] = (p_amp, p_delay, norm_visual(p_amp))
+        
+        p_amp, p_delay, p_amp_vis = _rendered_feature_cache[img_path]
+        ssim_val = ssim(t_amp_vis, p_amp_vis, data_range=255)
 
         if fast_ssim_only:
             # Fast mode: only SSIM matters

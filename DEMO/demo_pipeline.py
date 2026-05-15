@@ -214,6 +214,7 @@ def main():
             "--target_image", target_image,
             "--model_path",   args.model_path,
             "--iteration",    str(args.iteration),
+            "--resolution_scale", "0.5"
         ]
         if results["pred_path"]:
             prev = results["pred_path"][-1]

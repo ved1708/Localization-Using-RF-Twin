@@ -37,6 +37,10 @@ def _get_grid_search_module():
 
 # ── ADD module-level LPIPS cache ───────────────────────────────────────────
 _lpips_cache = None
+# keyed by (model_path, iteration)
+_gaussians_cache = {}
+
+
 
 def get_lpips():
     global _lpips_cache
@@ -377,11 +381,28 @@ def extract_gt_from_filename(filename):
 def iterative_optimization_refinement(gaussians, pipeline, background, target_image_tensor, 
                                  coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=100, 
                                  lambda_weight=0.6, fovx=0.8, fovy=0.8, width=600, height=600,
-                                 learning_rate=0.01, fast_mode=False):
+                                 learning_rate=0.01, fast_mode=False, resolution_scale=1.0):
                                  
     print("\n" + "="*60)
     print("STEP 4: Optimization Refinement" + (" [FAST MODE]" if fast_mode else ""))
+    if resolution_scale < 1.0:
+        print(f"(Running at {resolution_scale*100:.0f}% resolution for speed)")
     print("="*60 + "\n")
+    
+    # Apply resolution scaling
+    opt_width = int(width * resolution_scale)
+    opt_height = int(height * resolution_scale)
+    
+    # Resize target image to match optimization resolution
+    if resolution_scale < 1.0:
+        target_image_opt = torch.nn.functional.interpolate(
+            target_image_tensor, 
+            size=(opt_height, opt_width), 
+            mode='bilinear', 
+            align_corners=False
+        )
+    else:
+        target_image_opt = target_image_tensor
     
     loss_history = []
     
@@ -426,7 +447,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
 
     class DiffCam: pass
     shared_cam = DiffCam()
-    shared_cam.image_width, shared_cam.image_height = width, height
+    shared_cam.image_width, shared_cam.image_height = opt_width, opt_height
     shared_cam.FoVy, shared_cam.FoVx = fovy, fovx
     shared_cam.znear, shared_cam.zfar = znear, zfar
     
@@ -446,7 +467,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
         
         with torch.no_grad():
             rend = render(shared_cam, gaussians, pipeline, background)["render"]
-            loss = compute_loss(rend.unsqueeze(0), target_image_tensor, lpips_net, lambda_weight=lambda_weight)
+            loss = compute_loss(rend.unsqueeze(0), target_image_opt, lpips_net, lambda_weight=lambda_weight)
         return loss
 
     print(f"\n--- Sub-grid search around coarse estimate ---")
@@ -507,29 +528,37 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
     best_loss = float('inf')
     patience_counter = 0
     prev_grads = [None, None, None]  # Cache gradients for skipping
+    axis_active = [True, True, True]   # x, y, z
     
     for it in range(num_iterations):
         optimizer.zero_grad()
         
         l_center = evaluate_loss_fw(x, y, z)
         l_item = l_center.item()
-        
-        # Gradient computation with adaptive skipping in fast mode
-        if it % grad_skip == 0 or prev_grads[0] is None:
-            l_x_pos = evaluate_loss_fw(x + eps, y, z)
-            l_y_pos = evaluate_loss_fw(x, y + eps, z)
-            l_z_pos = evaluate_loss_fw(x, y, z + eps)
-            
-            x.grad = (l_x_pos - l_center) / eps
-            y.grad = (l_y_pos - l_center) / eps
-            z.grad = (l_z_pos - l_center) / eps
-            
-            prev_grads = [x.grad.clone(), y.grad.clone(), z.grad.clone()]
-        else:
-            # Reuse previous gradients to save 3 renders
-            x.grad = prev_grads[0]
-            y.grad = prev_grads[1]
-            z.grad = prev_grads[2]
+
+        # Compute gradients only for active axes
+        grads = [None, None, None]
+        params = [x, y, z]
+
+        for axis in range(3):
+            if not axis_active[axis]:
+                grads[axis] = torch.tensor(0.0, device="cuda")
+                continue
+            offsets_p = [x, y, z]
+            offsets_p[axis] = params[axis] + eps
+            l_pos = evaluate_loss_fw(*offsets_p)
+            grads[axis] = (l_pos - l_center) / eps
+
+        x.grad, y.grad, z.grad = grads
+
+        # After first 3 iterations, deactivate axis if its gradient is consistently tiny
+        if it == 3:
+            grad_mags = [abs(g.item()) for g in grads]
+            max_grad = max(grad_mags) + 1e-9
+            axis_active = [m / max_grad > 0.05 for m in grad_mags]
+            inactive = [['x','y','z'][i] for i in range(3) if not axis_active[i]]
+            if inactive:
+                print(f"\n  Freezing low-gradient axes: {inactive} (saves renders)")
         
         optimizer.step()
         scheduler.step()
@@ -569,6 +598,7 @@ def main():
     parser.add_argument("--coarse_z", type=float, default=None, help="Optional coarse Z position")
     parser.add_argument("--coarse_yaw", type=float, default=0.0, help="Optional coarse Yaw (degrees)")
     parser.add_argument("--fast_mode", action="store_true", help="Enable real-time optimization (skip micro-grid, fewer iterations)")
+    parser.add_argument("--resolution_scale", type=float, default=1.0, help="Scale factor for rendering resolution (e.g., 0.5 for 50% resolution)")
     
     # In some forks explicit iteration is added, but ModelParams usually has it or pipeline.
     # We will use parse_known_args
@@ -595,16 +625,23 @@ def main():
     print("\n" + "="*60)
     print("STEP 3: Loading RF-3DGS Scene and Model for Gradient Descent...")
     print("="*60)
-    print("\nLoading Gaussian model from iteration {}".format(args.iteration))
-    gaussians = GaussianModel(args.sh_degree)
-    
+
+    cache_key = (args.model_path, args.iteration)
+    if cache_key not in _gaussians_cache:
+        print("\nLoading Gaussian model from iteration {}".format(args.iteration))
+        gaussians = GaussianModel(args.sh_degree)
+        point_cloud_path = os.path.join(args.model_path, "point_cloud",
+                                        "iteration_" + str(args.iteration), "point_cloud.ply")
+        gaussians.load_ply(point_cloud_path)
+        bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
+        background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+        _gaussians_cache[cache_key] = (gaussians, background)
+    else:
+        print("\nUsing cached Gaussian model.")
+        gaussians, background = _gaussians_cache[cache_key]
+
     model_path = args.model_path
     iteration = args.iteration
-    point_cloud_path = os.path.join(model_path, "point_cloud", "iteration_" + str(iteration), "point_cloud.ply")
-    gaussians.load_ply(point_cloud_path)
-    
-    bg_color = [1, 1, 1] if args.white_background else [0, 0, 0]
-    background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
     
     # Load camera parameters from colmap explicitly
     cam_file = "grid_search_colmap/cameras.txt"
@@ -629,7 +666,7 @@ def main():
         gaussians, pipeline, background, target_tensor,
         coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=args.num_iterations,
         lambda_weight=args.lambda_weight, fovx=fovx, fovy=fovy, width=width, height=height,
-        learning_rate=args.learning_rate, fast_mode=fast_mode
+        learning_rate=args.learning_rate, fast_mode=fast_mode, resolution_scale=args.resolution_scale
     )
     refinement_time = time.time() - start_time
     total_localization_time = time.time() - total_start_time
