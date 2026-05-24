@@ -69,3 +69,17 @@ RF-3DGS/.git/
 # C++ build artifacts
 C:/
 build/
+
+# Newly added
+generate_dataset_tutorial_based.py
+inspect_rf_dataset.py
+interactive_csi_generator.py
+plot_comparisons.py
+evaluation_results.csv
+make_video.py
+Introduction.ipynb
+tesst/
+RF-3DGS_Sionna_simulation_tutorial/
+Results/
+debug_outputs/
+dataset_*/

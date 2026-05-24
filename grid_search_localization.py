@@ -17,7 +17,7 @@ def create_poses(x_range, y_range, z_range, yaws, out_dir):
                  z_range[0], z_range[-1], len(z_range))
     
     if cache_key in _poses_cache:
-        return out_dir, _poses_cache[cache_key]   # skip file I/O entirely
+        return out_dir, _poses_cache[cache_key]
     
     os.makedirs(out_dir, exist_ok=True)
     images_path  = os.path.join(out_dir, "images.txt")
@@ -65,11 +65,6 @@ def create_poses(x_range, y_range, z_range, yaws, out_dir):
     _poses_cache[cache_key] = poses_info
     return out_dir, poses_info
 
-# ──────────────────────────────────────────────────────────────────────────────
-# POSE GRID CREATION
-# ──────────────────────────────────────────────────────────────────────────────
-
-
 # ────────────────────────────────────
 # ROBUST PRE-PROCESSING  
 # ────────────────────────────────────
@@ -103,9 +98,9 @@ def robust_preprocess(img_float, target_size=(48, 48)):
     return clean_channel(amp), clean_channel(delay)
 
 
-# ──────────────────────────────────────────────────────────────────────
-# MULTI-SCALE CORRELATION  (robust to remaining artefacts)
-# ──────────────────────────────────────────────────────────────────────
+# ─────────────────────────
+# MULTI-SCALE CORRELATION
+# ─────────────────────────
 
 def cosine_sim(a, b):
     fa, fb = a.ravel().astype(np.float64), b.ravel().astype(np.float64)
@@ -195,7 +190,7 @@ def evaluate(target_image_path, rendered_folder, poses_info, fast_ssim_only=Fals
         ssim_val = ssim(t_amp_vis, p_amp_vis, data_range=255)
 
         if fast_ssim_only:
-            # Fast mode: only SSIM matters
+            # Fast mode: only SSIM
             total_dist = 1.0 - max(0, ssim_val)
             results.append({
                 'position':   p['position'],

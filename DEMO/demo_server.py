@@ -75,7 +75,6 @@ if __name__ == "__main__":
     ap.add_argument("--results-file", default="results.json")
     ap.add_argument("--port", type=int, default=5000)
     args = ap.parse_args()
-    # Resolve relative to this script so pipeline and server use the same path
     RESULTS_FILE = str(Path(__file__).resolve().parent / args.results_file)
     print(f"Demo server → http://localhost:{args.port}")
     app.run(host="0.0.0.0", port=args.port, debug=False)

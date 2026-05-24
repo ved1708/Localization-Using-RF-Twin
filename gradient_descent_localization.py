@@ -4,7 +4,6 @@
 #
 # This script takes a coarse pose estimate from grid_search_localization.py
 # and refines it using gradient descent on a combined L1 + SSIM loss.
-#
 
 import torch
 import os
@@ -21,10 +20,8 @@ from scipy.stats import chi2
 from tqdm import tqdm
 import torchvision
 
-# Add RF-3DGS to path since we moved the script out
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "RF-3DGS"))
 
-# Import grid_search logic directly to avoid subprocess overhead
 import importlib
 _gs_mod = None
 
@@ -35,7 +32,7 @@ def _get_grid_search_module():
         _gs_mod = gsm
     return _gs_mod
 
-# ── ADD module-level LPIPS cache ───────────────────────────────────────────
+# ADD module-level LPIPS cache
 _lpips_cache = None
 # keyed by (model_path, iteration)
 _gaussians_cache = {}
@@ -124,9 +121,8 @@ def pose_to_matrix(position, yaw_rad):
 
 def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None, fast_mode=False):
     """
-    Runs grid search logic in-process (no subprocess) to avoid Python boot overhead.
+    Runs grid search logic
     Falls back to subprocess only if direct import fails.
-    In fast_mode with coarse estimates, skips full grid search and returns single candidate.
     """
     print("\n" + "="*60)
     if coarse_x is not None:
@@ -150,7 +146,6 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
     try:
         gsm = _get_grid_search_module()
 
-        # Build the same argument namespace grid_search_localization.main() would parse
         import argparse
         gs_args = argparse.Namespace(
             model_path=model_path,
@@ -162,7 +157,6 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
             coarse_z=coarse_z,
         )
 
-        # ── replicate what main() does, but return results directly ──
         x_bound = [0.3, 6.7]
         y_bound = [0.3, 4.7]
         z_bound = [0.5, 2.5]
@@ -201,7 +195,7 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
             check_and_render_subset(neighbor_poses, "neighbor")
             final_results = gsm.evaluate(target_image, rendered_folder, neighbor_poses, fast_ssim_only=False)
         else:
-            # Full coarse path (anchor → neighbor) — same logic as grid_search_localization.main()
+            # Full coarse path (anchor → neighbor)
             anchor_stride = 2
             anchor_indices = {(ix, iy, iz, it)
                               for ix in range(0, len(x_range), anchor_stride)
@@ -234,7 +228,6 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
             check_and_render_subset(neighbor_poses, "neighbor")
             final_results = gsm.evaluate(target_image, rendered_folder, neighbor_poses, fast_ssim_only=False)
 
-        # Format output identical to what parse used to read from stdout
         candidates = [((r['position'][0], r['position'][1], r['position'][2]), float(r['yaw']))
                       for r in final_results[:5]]
 
@@ -244,7 +237,6 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
 
     except Exception as e:
         print(f"[warn] In-process grid search failed ({e}), falling back to subprocess...")
-        # Original subprocess fallback preserved exactly
         return _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x, coarse_y, coarse_z, fast_mode=fast_mode)
 
     print("\n" + "="*60)
@@ -294,8 +286,6 @@ def _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x=No
         
     process.wait()
             
-    # The actual top matches will be populated from the final list or from the Best coarse pose print
-    # Let's cleanly grab the new "Top 5 Matches" output
     
     candidates = []
     in_top_5 = False
@@ -341,7 +331,7 @@ def load_target_image(target_image_path, width, height):
 def compute_loss(rendered, target, lpips_net, lambda_weight=0.6):
     lpips_val = lpips_net(rendered, target).mean()
     ssim_value = ssim(rendered, target, window_size=11, size_average=True)
-    # L1 replaced with LPIPS. 0.4 * LPIPS + 0.6 * SSIM (in loss form: 1 - SSIM)
+    # 0.4 * LPIPS + 0.6 * SSIM (in loss form: 1 - SSIM)
     loss = (1.0 - lambda_weight) * lpips_val + lambda_weight * (1.0 - ssim_value)
     
     return loss
@@ -481,7 +471,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
         best_subgrid_loss = evaluate_loss_fw(x, y, z).item()
         print(f"[FAST MODE] Skipping micro-grid search. Starting from coarse estimate: ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f})")
     else:
-        # Original micro-grid search
+        # Micro-grid search
         offsets = [-0.25, 0.0, 0.25]
         for dx in offsets:
             for dy in offsets:
@@ -501,7 +491,7 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
               f"to ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f}) "
               f"with loss {best_subgrid_loss:.4f}")
 
-    # Set our optimizable parameters to the newly found best local sub-grid position
+    # Set optimizable parameters to the newly found best local sub-grid position
     with torch.no_grad():
         x.copy_(torch.tensor(best_subgrid_pos[0], dtype=torch.float32, device="cuda"))
         y.copy_(torch.tensor(best_subgrid_pos[1], dtype=torch.float32, device="cuda"))
@@ -509,7 +499,6 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
 
     print(f"\n--- Full Rx Position Optimization (Fixed at Dir {final_target_yaw}°) ---")
     
-    # Adaptive iteration count and parameters based on fast_mode
     if fast_mode:
         num_iterations = min(num_iterations, 30)  # Drastically reduce iterations
         eps = 2e-3  # Larger step for gradient approximation (fewer iterations needed)
@@ -527,8 +516,8 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
 
     best_loss = float('inf')
     patience_counter = 0
-    prev_grads = [None, None, None]  # Cache gradients for skipping
-    axis_active = [True, True, True]   # x, y, z
+    prev_grads = [None, None, None]
+    axis_active = [True, True, True]
     
     for it in range(num_iterations):
         optimizer.zero_grad()
@@ -589,7 +578,7 @@ def main():
     parser = ArgumentParser(description="Gradient Descent Localization Refinement for RF-3DGS")
     parser.add_argument("--target_image", type=str, required=True)
     # model_path is implicitly added by ModelParams
-    # parser.add_argument("--iteration", type=int, default=40000) # Often implicit too, let's keep it safe by trying to let pipeline grab it
+    # parser.add_argument("--iteration", type=int, default=40000)
     parser.add_argument("--num_iterations", type=int, default=1000)
     parser.add_argument("--learning_rate", type=float, default=0.01)
     parser.add_argument("--lambda_weight", type=float, default=0.6)
@@ -600,8 +589,7 @@ def main():
     parser.add_argument("--fast_mode", action="store_true", help="Enable real-time optimization (skip micro-grid, fewer iterations)")
     parser.add_argument("--resolution_scale", type=float, default=1.0, help="Scale factor for rendering resolution (e.g., 0.5 for 50% resolution)")
     
-    # In some forks explicit iteration is added, but ModelParams usually has it or pipeline.
-    # We will use parse_known_args
+
     
     model = ModelParams(parser, sentinel=True)
     pipeline = PipelineParams(parser)
@@ -683,9 +671,11 @@ def main():
     
     if gt_pos is not None:
         dist_error = np.sqrt(np.sum((optimized_position - gt_pos)**2))
+        initial_error = np.sqrt(np.sum((coarse_pose - gt_pos)**2))
         
         print(f"\n=== ACCURACY METRICS ===")
         print(f"  Real Position (Ground Truth): X={gt_pos[0]:.4f}m, Y={gt_pos[1]:.4f}m, Z={gt_pos[2]:.4f}m")
+        print(f"  Distance from Real Position (Grid Search Error): {initial_error:.6f} meters")
         print(f"  Distance from Real Position (Error): {dist_error:.6f} meters")
     else:
         print(f"\n[!] Ground Truth position could not be extracted from filename.")

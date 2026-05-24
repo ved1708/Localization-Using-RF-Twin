@@ -8,8 +8,6 @@ This script compares RF propagation patterns between:
 
 The difference highlights where the metallic obstacle affects RF propagation,
 enabling localization of the dynamic object.
-
-Author: RF-3DGS Analysis Tool
 """
 
 import os
@@ -303,7 +301,7 @@ def main():
     
     print(f"\n{'='*70}")
     print(f"COMPARISON COMPLETE")
-    print(f"{'='*70}")``
+    print(f"{'='*70}")
     print(f"Results saved to: {args.output_dir}")
     print(f"Summary JSON: {summary_path}")
     

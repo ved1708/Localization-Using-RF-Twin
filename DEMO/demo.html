@@ -302,7 +302,8 @@ async function poll() {
     // error bars
     if (errs.length) {
       const maxE = Math.max(...errs, 0.5);
-      document.getElementById('err-bars').innerHTML = errs.map((e,i) => {
+      const errBarsEl = document.getElementById('err-bars');
+      errBarsEl.innerHTML = errs.map((e,i) => {
         const col = e < 0.3 ? '#1D9E75' : e < 0.7 ? '#EF9F27' : '#E24B4A';
         return `<div class="ebr">
           <span class="pl">P${i+1}</span>
@@ -310,6 +311,9 @@ async function poll() {
           <span class="pv">${e.toFixed(3)} m</span>
         </div>`;
       }).join('');
+      setTimeout(() => {
+        errBarsEl.scrollTop = errBarsEl.scrollHeight;
+      }, 10);
     }
 
     // log

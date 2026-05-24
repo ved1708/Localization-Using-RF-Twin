@@ -70,12 +70,11 @@ flake8>=6.0.0
 # ===== GPU Requirements =====
 # CUDA 11.8 or higher
 # cuDNN 8.6 or higher
-# NVIDIA driver 520+ (for RTX GPUs)
 
 # ===== Hardware Recommendations =====
-# GPU: NVIDIA RTX 3080 or better (8GB+ VRAM)
+# GPU: NVIDIA RTX 4060 or better (8GB+ VRAM)
 # RAM: 16GB+ system memory
-# Storage: 50GB+ free space (for datasets)
+# Storage: 10GB+ free space (for datasets)
 # CPU: 8+ cores recommended for Blender rendering
 
 # ===== Installation Notes =====

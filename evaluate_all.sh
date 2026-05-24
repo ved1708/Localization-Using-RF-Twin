@@ -15,11 +15,11 @@ echo "Running evaluations..."
 echo ""
 
 # Print Table Header to stdout
-printf "%-25s | %-25s | %-10s | %-10s | %-10s\n" "GT Pos (X,Y,Z)" "Est Pos (X,Y,Z)" "Yaw (°)" "Error (m)" "Time (s)"
-printf "%s\n" "-------------------------------------------------------------------------------------------------"
+printf "%-25s | %-25s | %-10s | %-12s | %-12s | %-10s\n" "GT Pos (X,Y,Z)" "Est Pos (X,Y,Z)" "Yaw (°)" "GS Error (m)" "GD Error (m)" "Time (s)"
+printf "%s\n" "----------------------------------------------------------------------------------------------------------------"
 
 # Write header to CSV
-echo "GT_X,GT_Y,GT_Z,Est_X,Est_Y,Est_Z,Yaw,Error,Time_s,Filename" > "$RESULTS_CSV"
+echo "GT_X,GT_Y,GT_Z,Est_X,Est_Y,Est_Z,Yaw,Initial_Error,Final_Error,Time_s,Filename" > "$RESULTS_CSV"
 
 total_sq_error=0
 total_time=0
@@ -54,6 +54,7 @@ for img in "$TARGET_DIR"/*.png; do
         gt_y=$(grep "  Real Position" "$TMP_OUTPUT" | tail -n 1 | awk -F'Y=' '{print $2}' | awk -F'm' '{print $1}')
         gt_z=$(grep "  Real Position" "$TMP_OUTPUT" | tail -n 1 | awk -F'Z=' '{print $2}' | awk -F'm' '{print $1}')
         
+        initial_error=$(grep "Distance from Real Position (Grid Search Error):" "$TMP_OUTPUT" | tail -n 1 | awk '{print $8}')
         error=$(grep "Distance from Real Position (Error):" "$TMP_OUTPUT" | tail -n 1 | awk '{print $6}')
         time_s=$(grep "Refinement Time:" "$TMP_OUTPUT" | tail -n 1 | awk '{print $3}')
 
@@ -70,12 +71,13 @@ for img in "$TARGET_DIR"/*.png; do
            est_str="${est_x}, ${est_y}, ${est_z}"
         fi
         
+        init_err_str="${initial_error:-N/A}"
         err_str="${error:-N/A}"
         yaw_str="${yaw:-N/A}"
         time_str="${time_s:-N/A}"
 
         # Print the row in the terminal table
-        printf "%-25s | %-25s | %-10s | %-10s | %-10s\n" "$gt_str" "$est_str" "$yaw_str" "$err_str" "$time_str"
+        printf "%-25s | %-25s | %-10s | %-12s | %-12s | %-10s\n" "$gt_str" "$est_str" "$yaw_str" "$init_err_str" "$err_str" "$time_str"
         
         # Accumulate metrics
         if [[ -n "$error" ]] && [[ -n "$time_s" ]]; then
@@ -91,7 +93,7 @@ for img in "$TARGET_DIR"/*.png; do
         fi
 
         # Append to CSV
-        echo "$gt_x,$gt_y,$gt_z,$est_x,$est_y,$est_z,$yaw,$error,$time_s,$filename" >> "$RESULTS_CSV"
+        echo "$gt_x,$gt_y,$gt_z,$est_x,$est_y,$est_z,$yaw,$initial_error,$error,$time_s,$filename" >> "$RESULTS_CSV"
     fi
 done
 
