@@ -114,7 +114,7 @@ def plot_results(errors, y_true, y_pred, filename="nn_localization_results.png")
     axes[1].legend()
     axes[1].grid(True, linestyle='--')
     
-    # 3. Spatial Error Map (2D projection)
+    # 3. Spatial Error Map
     sc = axes[2].scatter(y_true[:, 0], y_true[:, 1], c=errors, cmap='viridis', alpha=0.8, vmin=0, vmax=np.percentile(errors, 95))
     plt.colorbar(sc, ax=axes[2], label='Localization Error (m)')
     axes[2].set_title('Spatial Distribution of Errors (Top-Down View)')

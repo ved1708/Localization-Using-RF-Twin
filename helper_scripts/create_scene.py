@@ -361,10 +361,9 @@ def create_scene_meshes(output_dir):
     furniture_center.add_box(sofa1_x,
                               (sofa1_y_front, sofa1_y_mid),
                               (seat_bottom_z, sofa_seat_height + sofa_backrest_height))
-    # Seat (tucked between armrests and in front of backrest)
     furniture_center.add_box(sofa1_seat_x, (sofa1_y_mid, sofa1_y_back),
                               (seat_bottom_z, sofa_seat_height))
-    # Armrests (shortened to start after backrest)
+    # Armrests
     furniture_center.add_box((sofa1_x[0], sofa1_x[0] + armrest_width),
                               (sofa1_y_mid, sofa1_y_back),
                               (seat_bottom_z, armrest_height))
@@ -378,7 +377,7 @@ def create_scene_meshes(output_dir):
     print("✓ Sofa 1 (south side) — with base")
 
     # ------------------------------------------------------------------
-    # Sofa 2 - North side (higher y), facing south
+    # Sofa 2 - North side, facing south
     # ------------------------------------------------------------------
     sofa2_y_front = ct_y[1] + 0.4
     sofa2_y_back  = sofa2_y_front + sofa_depth
@@ -393,7 +392,7 @@ def create_scene_meshes(output_dir):
     # Seat (tucked between armrests and in front of backrest)
     furniture_center.add_box(sofa2_seat_x, (sofa2_y_front, sofa2_y_mid),
                               (seat_bottom_z, sofa_seat_height))
-    # Armrests (shortened to start before backrest)
+    # Armrests
     furniture_center.add_box((sofa2_x[0], sofa2_x[0] + armrest_width),
                               (sofa2_y_front, sofa2_y_mid),
                               (seat_bottom_z, armrest_height))

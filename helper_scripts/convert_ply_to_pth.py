@@ -18,19 +18,18 @@ def convert(args):
     gaussians = GaussianModel(sh_degree=3)
     
     # 2. Setup dummy training parameters to initialize optimizer (needed for capture)
-    # We use default params, it doesn't matter much as we just want a valid structure
     parser = ArgumentParser()
     opt_params = OptimizationParams(parser)
     # Extract defaults
     opt = opt_params.extract(parser.parse_args([]))
     
-    # Setup training (creates optimizer)
+    # Setup training
     gaussians.training_setup(opt)
     
-    # 3. Load the PLY data into the model (overwriting initialized params)
+    # 3. Load the PLY data into the model
     gaussians.load_ply(args.ply)
     
-    # 4. Capture state (includes the geometry from PLY and the fresh optimizer state)
+    # 4. Capture state
     iteration = 30000
     save_tuple = (gaussians.capture(), iteration)
     

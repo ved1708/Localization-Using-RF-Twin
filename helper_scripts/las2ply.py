@@ -24,7 +24,7 @@ def optimize_and_convert(las_path, ply_path, voxel_size=0.05):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     
-    # Extract Colors (if available)
+    # Extract Colors if available
     if hasattr(las, 'red'):
         print("   Color data found. Processing...")
         colors = np.vstack((las.red, las.green, las.blue)).transpose()
@@ -41,14 +41,12 @@ def optimize_and_convert(las_path, ply_path, voxel_size=0.05):
     print(f"   Original Point Count: {original_count}")
 
     # --- OPTIMIZATION: DOWNSAMPLING ---
-    # Reduces the number of points to make it run smoothly on WebGL
     print(f"2. Downsampling (Voxel Size: {voxel_size})...")
     downpcd = pcd.voxel_down_sample(voxel_size=voxel_size)
     new_count = len(downpcd.points)
     print(f"   New Point Count: {new_count} (Reduced by {100 - (new_count/original_count)*100:.1f}%)")
 
     # --- OPTIMIZATION: NORMALS ---
-    # Calculates lighting information so the model doesn't look flat
     print("3. Estimating Normals (for lighting/shading)...")
     downpcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=voxel_size * 2.5, max_nn=30)
@@ -66,7 +64,6 @@ if __name__ == "__main__":
     # Input: The raw scan
     input_file = "/home/ved/Downloads/XGrid_artGarage/art_garage.las"
     
-    # Output: Will save in the folder where you run this script (unless you add a path)
     output_file = "artpark.ply" 
     
     # Controls detail level. 

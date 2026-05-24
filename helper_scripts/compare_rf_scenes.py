@@ -30,7 +30,7 @@ def load_rf_image(image_path):
     Returns:
         rf_data: 2D numpy array of RF intensities (0-1 normalized)
     """
-    # Load image (already grayscale/single channel from RF render)
+    # Load image
     img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     
     if img is None:
@@ -50,8 +50,8 @@ def compute_difference_map(static_rf, dynamic_rf):
     Compute difference between dynamic and static RF fields.
     
     Args:
-        static_rf: RF heatmap without obstacle
-        dynamic_rf: RF heatmap with metallic cube
+        static_rf
+        dynamic_rf
         
     Returns:
         diff_map: Absolute difference |dynamic - static|
@@ -75,13 +75,13 @@ def visualize_comparison(static_rf, dynamic_rf, diff_map, signed_diff,
     Create multi-panel visualization comparing static, dynamic, and difference.
     
     Args:
-        static_rf: Static scene RF heatmap
-        dynamic_rf: Dynamic scene RF heatmap  
-        diff_map: Absolute difference map
-        signed_diff: Signed difference (shows increase/decrease)
-        output_path: Where to save visualization
-        rx_position: Rx antenna position for title
-        threshold: Highlight differences above this threshold
+        static_rf
+        dynamic_rf
+        diff_map
+        signed_diff
+        output_path
+        rx_position
+        threshold
     """
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     fig.suptitle(f'RF Scene Comparison - Rx Position: {rx_position}', 
@@ -114,7 +114,7 @@ def visualize_comparison(static_rf, dynamic_rf, diff_map, signed_diff,
     axes[1, 0].axis('off')
     plt.colorbar(im3, ax=axes[1, 0], fraction=0.046, pad=0.04, label='RF Change')
     
-    # Thresholded change regions (binary mask of significant changes)
+    # Binary mask of significant changes
     change_mask = diff_map > threshold
     im4 = axes[1, 1].imshow(change_mask, cmap='gray')
     axes[1, 1].set_title(f'Significant Changes (threshold={threshold:.2f})', fontsize=14)
@@ -166,12 +166,11 @@ def visualize_comparison(static_rf, dynamic_rf, diff_map, signed_diff,
 
 def find_change_centroid(diff_map, threshold=0.1):
     """
-    Find the centroid (center of mass) of significant changes.
-    This can help localize where the dynamic object is affecting RF.
+    Find the centroid of significant changes.
     
     Args:
-        diff_map: Difference map
-        threshold: Threshold for significant changes
+        diff_map
+        threshold
         
     Returns:
         centroid_x, centroid_y: Pixel coordinates of change center
@@ -232,7 +231,6 @@ def main():
         
         # Find corresponding images
         # Convention: 00001.png for first Rx, 00002.png for second, etc.
-        # Adjust based on your naming convention
         static_img_path = os.path.join(args.static_dir, f'{rx_id:05d}.png')
         dynamic_img_path = os.path.join(args.dynamic_dir, f'{rx_id:05d}.png')
         

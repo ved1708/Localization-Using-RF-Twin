@@ -100,7 +100,7 @@ python train.py \
 | `-m, --model_path` | `output/rf_model` | Output directory |
 | `--images` | `spectrum` | Subfolder with RF heatmaps |
 | `--start_checkpoint` | `output/visual_model/chkpnt30000.pth` | Visual checkpoint |
-| `--iterations` | `40000` | Fewer iterations (starting from iteration 30000) |
+| `--iterations` | `10000` | Fewer iterations (geometry already learned) |
 
 ### Fine-tuning Process
 
@@ -155,4 +155,6 @@ After training:
 **See also**:
 
 -   [Main README](../README.md)
+-   [Visual Dataset Guide](VISUAL_DATASET.md)
+-   [RF Dataset Guide](RF_DATASET.md)
 -   [Evaluation Guide](EVALUATION.md)

@@ -20,51 +20,125 @@ This tracking is facilitated through iterative optimization algorithms built dir
 
 ## 📊 Localization Metrics
 
-We comprehensively evaluate our localization approaches utilizing various RF signatures (Ideal MPC, Delay) and compare traditional optimization against deep learning models:
+We comprehensively evaluate our localization approaches utilizing various RF signatures (Delay, MPC) and compare traditional optimization against deep learning models:
 
 - **Average Localization Error**: Achieves sub-meter accuracy (~0.5m average error), pushing boundaries in multi-path rich environments.
 - **Optimization Methods**: Includes zero-shot optimization evaluations utilizing Grid Search (`grid_search_localization.py`) and Gradient Descent (`gradient_descent_localization.py`).
 
+*Table: Localization accuracy across all test locations. All values are in metres.*
+
+| Method | Mean | Median | RMSE | $\varepsilon_{90}$ |
+| :--- | :---: | :---: | :---: | :---: |
+| kNN ($k=5$) | 1.523 | 1.325 | 1.830 | 3.056 |
+| MLP | 0.442 | 0.392 | 0.511 | 0.708 |
+| Grid Search Only | 0.407 | 0.374 | 0.444 | 0.508 |
+| Grid Search + GD | 0.104 | 0.036 | 0.228 | 0.236 |
+
 
 ---
 
-## 📡 RF-3DGS Modeling Results
+## �️ Step-by-Step Pipeline
 
-Before localization can occur, the system generates a surrogate scene. It primarily trains a visual model using RGB datasets and then fine tunes the established geometry using spatially-aware RF heatmaps.
+Follow these documentation guides chronologically to successfully recreate the Digital Twin and evaluate localization performance from scratch.
 
-### 1. Visual Geometry Reconstruction
-- **Scene Context**: Parametric 7m × 5m × 3m room populated natively with mixed-material furniture (Concrete walls, Glass windows, Wooden tables, Metallic objects/screens).
-- **Quality**: Reaches PSNR ~30 dB and SSIM ~0.94 from 800x800 resolution renders.
+### 1. Scene Creation 
+**[SCENE_CREATION.md](docs/SCENE_CREATION.md)**
 
-### 2. Multi-path RF Reconstruction
-- **Simulation Settings**: Designed for 3.5 GHz & 28 GHz (mmWave 5G) bands using NVIDIA Sionna RT framework.
-- **Capabilities**: Extrapolates distinct RF responses (reflection, diffraction, scattering) seamlessly across continuous unseen spatial locations.
-- **Dataset Modalities**: Generated multi-modal configurations encompassing power mappings, delays, and MVDR spatial spectra (e.g., `dataset_ideal_mpc`, `dataset_ideal_delay`).
+Generates the 3D room model (7m × 5m × 3m) equipped with furniture as separate material-based PLY meshes (concrete, wood, glass, metal) alongside a Sionna-ready Scene XML.
 
----
+**Usage:**
+```bash
+cd helper_scripts
+python create_scene.py
+```
 
-## 🧭 Localization Methodology
+### 2. Visual Dataset Generation
+**[VISUAL_DATASET.md](docs/VISUAL_DATASET.md)**
 
-The localization pipeline serves as the analytical bridge processing raw spatial RF data through the RRF model:
-1. **Data Acquisition**: Extracs multi-path properties (Path Gains, Delays).
-2. **Cost formulation Formulation**: Calculates positional gradient differences actively mapping the measured RF fingerprints physically against dynamically generated RF-3DGS test scenes.
-3. **Position Solving**:
-    - **Optimization Tracking**: Scans grids or steps down calculated gradients relying heavily on differentiable geometry renders.
-    - **Regressive Features**: Directly maps features vectors to spatial limits utilizing high-speed regressors for live inference.
+Uses Blender's Cycles renderer to synthesize high-quality RGB images capturing diverse viewpoints inside the room for foundational 3DGS visual geometry training.
 
----
+**Usage:**
+```bash
+blender --background --python generate_visual_dataset.py -- \
+  --meshes_dir=meshes_d \
+  --output_dir=dataset_visual \
+  --test_ratio=0.10
+```
 
-## 🔗 Documentation Links
+### 3. RF Dataset Generation
+**[RF_DATASET.md](docs/RF_DATASET.md)**
 
-For detailed replication instructions, architecture flowcharts, and codebase operation explanations, please select the specified documentation files below:
+Uses NVIDIA Sionna RT to simulate **3.5 GHz** RF transmission paths spanning a 3D grid. The signal profiles are projected to continuous multi-modal heatmaps.
 
-- **[🛠️ Installation Guide](installation.md)**: Dependencies, Conda environments, Sionna ray-tracing & Blender setup.
-- **[🏗️ RFDT Construction Pipeline](rfdt_pipeline.md)**: Sequential structure covering Scene Creation → Visual Generation → RF Processing → RF-3DGS Training.
-- **[🎯 Localization Pipeline](localization_pipeline.md)**: Comprehensive guide dissecting the Regressive Neural Networks alongside optimization strategies deployed for tracking.
+**Usage:**
+```bash
+# Example: Generate Ideal Delay-resolved spectrum (RGB)
+python generate_rf_dataset_0.py --ideal --spectrum-type delay --output-dir dataset_ideal_delay_3.5ghz
+
+# Then, prepare COLMAP structures for 3DGS
+cd helper_scripts
+python prepare_rf_data.py
+```
+
+### 4. 3DGS Model Training
+**[TRAINING.md](docs/TRAINING.md)**
+
+Trains the **Radio-Frequency Radiance Fields (RRF)** in two stages. First, learning scene geometry via RGB (Visual stage). Second, fine-tuning the RF attributes (RF stage).
+
+**Usage:**
+```bash
+# Stage 1: Visual Training
+cd RF-3DGS
+python train.py -s ../dataset_visual -m output/visual_model --iterations 30000
+
+# Convert point cloud -> .pth checkpoint
+python ../helper_scripts/convert_ply_to_pth.py \
+  --ply output/visual_model/point_cloud/iteration_30000/point_cloud.ply \
+  --out output/visual_model/chkpnt30000.pth
+
+# Stage 2: RF Fine-tuning
+python train.py -s ../dataset_ideal_delay_3.5ghz -m output/rf_model_delay_3.5ghz \
+  --images spectrum --start_checkpoint output/visual_model/chkpnt30000.pth --iterations 40000
+```
+
+### 5. Evaluation and Localization
+**[EVALUATION.md](docs/EVALUATION.md)**
+
+Provides rendering pipelines to test generated configurations, and establishes localization via Regression (MLP) or Gradient-Descent optimization.
+
+**Usage:**
+```bash
+# Render Test Views
+cd RF-3DGS
+python render.py -m output/rf_model_delay_3.5ghz --iteration 40000 --skip_train
+
+# Generate Single Frame & Localize (Gradient Descent)
+cd ..
+python generate_csi_dataset.py --ideal --spectrum-type delay --rx-pos 0.4 0.4 1.2 --output-dir localisation_frames_3.5ghz
+
+python gradient_descent_localization.py --target_image localisation_frames_3.5ghz/delay_0.40_0.40_1.20_0.png --model_path RF-3DGS/output/rf_model_delay_3.5ghz --iteration 40000
+
+# Regression Localization (k-NN / MLP)
+cd Regressive_models
+python evaluate_localization.py
+python train_nn_localizer.py
+
+# Batch Evaluation over all frames
+./evaluate_all.sh
+```
+
+#### Interactive Demo
+A Flask based web interface to visualize real-time trajectory tracking.
+
+**Usage:**
+```bash
+cd DEMO
+python demo_server.py
+```
 
 ---
 
 ## 👤 Author & Acknowledgments
 - **Project & Repository**: [ved1708/Localization-Using-RF-Twin](https://github.com/ved1708/Localization-Using-RF-Twin)
-- **Core Frameworks & Tools**: Adapted around [RF-3DGS](https://github.com/Wangmz-1203/RF-3DGS), [NVIDIA Sionna](https://nvlabs.github.io/sionna/), [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) & Blender.
+- **Core Frameworks & Tools**: Adapted around [RF-3DGS](https://github.com/SunLab-UGA/RF-3DGS), [NVIDIA Sionna](https://nvlabs.github.io/sionna/), [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) & Blender.
 

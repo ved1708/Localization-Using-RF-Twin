@@ -145,8 +145,6 @@ class Equirectangular:
         
         out_channels = []
         for i in range(self._img.shape[2]):
-            # map_coordinates handles interpolation. mode='wrap' behaves like BORDER_WRAP?
-            # cv2.BORDER_WRAP means cyclic. scipy 'wrap' means cyclic.
             out_channels.append(map_coordinates(self._img[..., i], coords, order=1, mode='wrap'))
             
         persp = np.stack(out_channels, axis=-1)
@@ -204,7 +202,7 @@ def plot_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_si
                 target_slice = img[xmin:xmax, ymin:ymax]
                 source_slice = path_dot[gauss_xmin:gauss_xmax, gauss_ymin:gauss_ymax]
                 
-                # Double check shapes match before adding
+                # Double check shapes match
                 if target_slice.shape == source_slice.shape:
                     img[xmin:xmax, ymin:ymax] += source_slice
 
@@ -218,16 +216,16 @@ def plot_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_si
 
 def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
     """
-    AoD (Angle of Departure) spatial spectrum — RGB encoding of departure angles:
-      R = departure elevation (theta_t, 0°–180°, low=blue, high=red)
-      G = departure azimuth  (phi_t, -180°–180°, mapped to [1,0])
+    AoD (Angle of Departure) spatial spectrum - RGB encoding of departure angles:
+      R = departure elevation (theta_t, 0°-180°, low=blue, high=red)
+      G = departure azimuth  (phi_t, -180°-180°, mapped to [1,0])
       B = path amplitude (acts as reference channel)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
     """
-    # Blob position = arrival direction (same as MPC)
+    # Blob position = arrival direction
     theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi  # arrival elevation [deg]
     phi_r   = path_instance.phi_r.numpy()[0, 0, 0, :]   * 180 / np.pi  # arrival azimuth   [deg]
-    # Color encoding = departure direction (what makes AoD different from MPC)
+    # Color encoding = departure direction
     theta_t = path_instance.theta_t.numpy()[0, 0, 0, :] * 180 / np.pi  # departure elevation [deg]
     phi_t   = path_instance.phi_t.numpy()[0, 0, 0, :]   * 180 / np.pi  # departure azimuth   [deg]
     amps    = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])      # path amplitudes
@@ -249,13 +247,13 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
         if amp < 1e-9:
             continue
 
-        # Blob color encodes departure angles (unique per TX-scatterer-RX geometry → discriminative for localization)
+        # Blob color encodes departure angles
         r_value = np.interp(theta_t[idx], (0, 180),    (0, 1))  # departure elevation → R
         g_value = np.interp(phi_t[idx],   (-180, 180),  (1, 0)) # departure azimuth   → G
 
         path_dot = gauss_kernel * amp / np.sum(gauss_kernel)
 
-        # Blob position = arrival direction (same coordinate system as MPC)
+        # Blob position = arrival direction
         phi_idx   = int(-phi_r[idx]   + 180) * image_scale
         theta_idx = int( theta_r[idx]       ) * image_scale
 
@@ -276,7 +274,7 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
                 img_rgb[xmin:xmax, ymin:ymax, 1] += s * g_value  # G = azimuth-weighted amp
                 img_rgb[xmin:xmax, ymin:ymax, 2] += s            # B = amplitude reference
 
-    # dB conversion per channel (same convention as plot_spatial_spectrum)
+    # dB conversion per channel
     for c in range(3):
         ch = img_rgb[:, :, c]
         nz = ch > 0
@@ -292,7 +290,7 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
 
 def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, kernel_sigma=3, delay_max_ns=200):
     """
-    Propagation-delay spatial spectrum plotted at arrival direction — RGB encoding:
+    Propagation-delay spatial spectrum plotted at arrival direction - RGB encoding:
       R = propagation delay (tau, 0-delay_max_ns ns, normalized to [0,1])
       G = path amplitude (reference channel)
       B = path amplitude (same as G — duplicated for visual balance)
@@ -301,7 +299,7 @@ def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, ker
     theta_r = path_instance.theta_r.numpy()[0, 0, 0, :] * 180 / np.pi  # arrival elevation [deg]
     phi_r   = path_instance.phi_r.numpy()[0, 0, 0, :]   * 180 / np.pi  # arrival azimuth   [deg]
     amps    = np.abs(path_instance.a.numpy()[0, 0, 0, 0, 0, :, 0])      # path amplitudes
-    tau_ns  = path_instance.tau.numpy()[0, 0, 0, :] * 1e9               # seconds → nanoseconds
+    tau_ns  = path_instance.tau.numpy()[0, 0, 0, :] * 1e9               # nanoseconds
 
     if amps.size == 0:
         return np.ones((180 * image_scale, 360 * image_scale, 3)) * -160.0
@@ -320,7 +318,7 @@ def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, ker
         if amp < 1e-9:
             continue
 
-        # Normalize delay: 0 ns → R=0, delay_max_ns → R=1
+        # Normalize delay
         r_value = np.interp(tau_ns[idx], (0, delay_max_ns), (0, 1))
 
         path_dot = gauss_kernel * amp / np.sum(gauss_kernel)
@@ -361,13 +359,13 @@ def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, ker
 
 def plot_phase_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
     """
-    Phase-aware spatial spectrum plotted at arrival direction — RGB encoding:
+    Phase-aware spatial spectrum plotted at arrival direction - RGB encoding:
       R = amplitude * cos(phase)
       G = amplitude * sin(phase)
       B = amplitude
 
         Notes:
-            - Returns linear channels; normalization is handled downstream in generate_ideal_dataset.
+            - Returns linear channels, normalization is handled downstream in generate_ideal_dataset.
             - R/G are signed (phase-carrying), B is non-negative amplitude.
     Returns shape: (360*scale, 180*scale, 3).
     """
@@ -572,13 +570,9 @@ def MVDR_spectrum(paths, M, theta_grid, phi_grid, time_interval=0.1):
     x_H = tf.transpose(tf.math.conj(x))          # (L, M²)
     R   = tf.matmul(x, x_H)                      # (M², M²)
     # Adaptive diagonal loading: only activates when R has negative eigenvalues
-    # (i.e. truly rank-deficient, num_paths < M²). When R is full-rank (normal case
-    # with 20+ paths), eps=0 → no loading → physical nulls fully preserved.
-    # Fixed loading (e.g. 1e-3×trace) fills nulls even for well-conditioned R.
     eigvals  = tf.math.real(tf.linalg.eigvalsh(R))          # sorted ascending
     min_eig  = tf.reduce_min(eigvals)
     max_eig  = tf.reduce_max(eigvals)
-    # Load just enough to make min eigenvalue positive — zero loading if already PD
     eps = tf.maximum(-min_eig + 1e-10 * max_eig, 0.0)
     eps = tf.cast(eps, tf.complex64)
     R_loaded = R + eps * tf.eye(tf.shape(R)[0], dtype=tf.complex64)
@@ -598,7 +592,7 @@ def MVDR_spectrum(paths, M, theta_grid, phi_grid, time_interval=0.1):
 
 def CBF_spectrum(paths, M, theta_grid, phi_grid, time_interval=0.1):
     """
-    Angle-Delay CBF (delay-resolved beamforming)
+    Angle-Delay CBF
 
     P(θ,φ) = max_l |aᴴ x_l|²
 
@@ -630,10 +624,7 @@ def CBF_spectrum(paths, M, theta_grid, phi_grid, time_interval=0.1):
 
 def generate_mvdr_dataset(scene, rx_locs, tx_loc, output_dir, M=4, time_interval=0.1, method='mvdr'):
     """
-    Array beamforming dataset for RF-3DGS.
     method='mvdr' — MVDR (Capon): P = 1/(aᴴR⁻¹a), sharp adaptive nulls, needs num_paths >> M²
-    method='cbf'  — CBF (Bartlett): P = aᴴRa, always stable, fully deterministic
-    Requires: M×M tr38901 rx_array with synthetic_array=True.
     """
     spectrum_dir = os.path.join(output_dir, 'spectrum')
     cameras_file = os.path.join(output_dir, 'cameras.txt')
@@ -655,7 +646,7 @@ def generate_mvdr_dataset(scene, rx_locs, tx_loc, output_dir, M=4, time_interval
     print(f"{method.upper()} Setup: {width}×{height}, H-FOV={h_fov_deg}°, M={M} ({M}×{M} array = {M**2} elements)")
 
     jet_colormap = plt.get_cmap('jet')
-    # Camera-local angle grid — same for every pose (array points along +x, same FOV)
+    # Camera-local angle grid - same for every pose (array points along +x, same FOV)
     theta_grid, phi_grid = compute_angle_matrices_mvdr(width=width, height=height, fov=h_fov_deg)
 
     # ------------------------------------------------------------------
@@ -768,7 +759,7 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
     rx = Receiver(name='rx', position=[0,0,0])
     scene.add(rx)
 
-    # 1. Determine normalization stats.
+    # 1. Determine normalization stats
     spec_max = None
     spec_min = None
     phase_norm_params = None
@@ -784,7 +775,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
             rx.position = rx_locs[idx]
 
             # Scat_keep_prob=0.5 for detailed MPC
-            # Using 2 depth to capture reflections
             paths = scene.compute_paths(max_depth=2, reflection=True, diffraction=False, scattering=True,
                                         scat_keep_prob=0.5, num_samples=int(5e5))
 
@@ -792,7 +782,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
             if paths.a.shape[-2] == 0:
                 continue
 
-            # Dispatch to correct spectrum function
             if spectrum_type == 'aod':
                 spec = np.transpose(plot_aod_spatial_spectrum(paths), (1, 0, 2))
             elif spectrum_type == 'delay':
@@ -903,7 +892,7 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
 
         # print(f"Normalization: spec={spec.shape}, norm_range=[{np.min(spec_norm):.3f}, {np.max(spec_norm):.3f}]")
 
-        # Prepare for projection (add channel dim for MPC)
+        # Prepare for projection
         if spectrum_type == 'mpc':
             spec_input = spec_norm[..., None]
         else:
@@ -914,7 +903,7 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
             # Convert Equirectangular to Perspective (MPC stays scalar; AoD/Delay are RGB)
             persp_norm = equirectangular_to_perspective(spec_input, h_fov_deg, angle*180/np.pi, 90, height, width)
             
-            # Quality check: for phase use B channel as signal proxy, otherwise max intensity.
+            # Quality check
             signal_peak = np.max(persp_norm[..., 2]) if spectrum_type == 'phase' else np.max(persp_norm)
             if signal_peak < 0.1:
                 continue
@@ -981,7 +970,6 @@ if __name__ == "__main__":
 
     scene = load_scene(args.scene)
     
-    # 28 GHz — lower FSPL (+6.6 dB vs 60 GHz), stronger multipath, ITU-R P.2040-2 material params below
     scene.frequency = 3.5e9 
     scene.synthetic_array = True 
     wavelength = 299792458 / scene.frequency
@@ -1002,10 +990,8 @@ if __name__ == "__main__":
         method_name = 'MVDR' if args.mvdr else 'CBF'
         print(f"{method_name} mode: {M}x{M} tr38901 array ({M**2} elements) at {scene.frequency/1e9} GHz")
 
-    # Define Materials with Scattering (Required for Ideal MPC)
     global_scattering_coeff = 4
     
-    # Create materials but check if they exist (Sionna might load them from XML with generic names)
     # The snippet creates new RadioMaterials with scattering properties.
     
     # Conductivities at 28 GHz via ITU-R P.2040-2: σ(f_GHz) = c * f_GHz^d
@@ -1042,7 +1028,6 @@ if __name__ == "__main__":
             scene.add(mat)
 
     # Re-assign materials to objects
-    # This overwrites the materials assigned by load_scene from fixed XML
     print("Re-assigning materials for Scattering...")
     for obj_name, obj in scene.objects.items():
         # Clean naming matching
@@ -1061,17 +1046,12 @@ if __name__ == "__main__":
     # --- Sampling Campaign ---
     x_range = np.linspace(0.3, 6.7, 12)  # 0.3m to 6.7m
     y_range = np.linspace(0.3, 4.7, 8)   # 0.3m to 4.7m
-    z_height = [1.2, 2.5]   # 1.2m
+    z_height = [1.2, 2.5]
     rx_locs = [[x, y, z] for x in x_range for y in y_range for z in z_height]
     
-    tx_pos = [0.01, 2.5, 2.9]  # 3.5 2.5 2.7
+    tx_pos = [0.01, 2.5, 2.9]
     
     print(f"Starting dataset generation for {len(rx_locs)} positions...")
-    # spectrum_type options:
-    #   'mpc'   — MPC arrival-angle spectrum (single-channel grayscale)
-    #   'aod'   — AoD departure-angle spectrum (RGB: R=elev, G=azim, B=amp)
-    #   'delay' — Propagation-delay spectrum  (RGB: R=delay, G=B=amp)
-    #   'phase' — Phase-aware spectrum        (RGB: R=A*cos(phi), G=A*sin(phi), B=A)
     if args.ideal:
         out_dir = args.output_dir or f"dataset_ideal_{args.spectrum_type}"
         generate_ideal_dataset(scene, rx_locs, tx_pos, out_dir, spectrum_type=args.spectrum_type)

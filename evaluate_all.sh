@@ -7,7 +7,7 @@ TARGET_DIR="/home/ved/Ved/Project_1/localisation_frames_3.5ghz"
 MODEL_PATH="RF-3DGS/output/rf_model_delay_3.5ghz"
 ITERATION=40000
 
-# Create a temporary file for outputs
+# Outputs
 TMP_OUTPUT="eval_tmp_output.log"
 RESULTS_CSV="evaluation_results.csv"
 
@@ -32,7 +32,7 @@ for img in "$TARGET_DIR"/*.png; do
     if [ -f "$img" ]; then
         filename=$(basename "$img")
         
-        # Print progress to stderr so it doesn't mess up the table if redirected
+        # Print progress to stderr
         echo "Evaluating $filename..." >&2
         
         # Run the python script and capture its output
@@ -43,7 +43,6 @@ for img in "$TARGET_DIR"/*.png; do
             --resolution_scale 0.5 > "$TMP_OUTPUT" 2>&1
             
         # Extract values using grep and awk
-        # We use tail to get the final optimization block output
         est_x=$(grep "  X: " "$TMP_OUTPUT" | tail -n 1 | awk '{print $2}')
         est_y=$(grep "  Y: " "$TMP_OUTPUT" | tail -n 1 | awk '{print $2}')
         est_z=$(grep "  Z: " "$TMP_OUTPUT" | tail -n 1 | awk '{print $2}')

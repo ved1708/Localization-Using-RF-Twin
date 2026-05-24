@@ -23,10 +23,14 @@ Simulate 3.5 GHz RF propagation using Sionna RT ray-tracing (Sionna 0.18+) and g
 - **Input Files**:
     - **Sionna XML Scene**: `room_with_cube.xml` (Defines geometry & materials. Generated in [SCENE_CREATION.md](SCENE_CREATION.md)).
     - **PLY Meshes**: Located in `meshes_d/` folder (Referenced by the XML).
+
 ## Usage:
+
+You can specify a custom output directory for generated frames using the `--output-dir` flag. If not provided, the script automatically defaults to a descriptive name (e.g., `dataset_ideal_mpc` or `dataset_ideal_delay`) based on your selected mode flags.
+
 ```bash
-# Ideal MPC (Grayscale)
-python generate_rf_dataset_0.py --ideal --spectrum-type mpc
+# Ideal MPC (Grayscale) with a custom output directory
+python generate_rf_dataset_0.py --ideal --spectrum-type mpc --output-dir custom_mpc_dataset
 
 # AoD Spectrum (RGB)
 python generate_rf_dataset_0.py --ideal --spectrum-type aod

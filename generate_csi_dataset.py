@@ -145,8 +145,6 @@ class Equirectangular:
         
         out_channels = []
         for i in range(self._img.shape[2]):
-            # map_coordinates handles interpolation. mode='wrap' behaves like BORDER_WRAP?
-            # cv2.BORDER_WRAP means cyclic. scipy 'wrap' means cyclic.
             out_channels.append(map_coordinates(self._img[..., i], coords, order=1, mode='wrap'))
             
         persp = np.stack(out_channels, axis=-1)
@@ -206,9 +204,9 @@ def plot_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_si
 
 def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kernel_sigma=3):
     """
-    AoD (Angle of Departure) spatial spectrum — RGB encoding of departure angles:
-      R = departure elevation (theta_t, 0°–180°, low=blue, high=red)
-      G = departure azimuth  (phi_t, -180°–180°, mapped to [1,0])
+    AoD (Angle of Departure) spatial spectrum - RGB encoding of departure angles:
+      R = departure elevation (theta_t, 0°-180°, low=blue, high=red)
+      G = departure azimuth  (phi_t, -180°-180°, mapped to [1,0])
       B = path amplitude (acts as reference channel)
     Returns shape: (360*scale, 180*scale, 3), values in dB.
     """
@@ -273,7 +271,7 @@ def plot_aod_spatial_spectrum(path_instance, image_scale=3, kernel_size=3, kerne
 
 def plot_delay_spatial_spectrum(path_instance, image_scale=4, kernel_size=3, kernel_sigma=3, delay_max_ns=200):
     """
-    Propagation-delay spatial spectrum plotted at arrival direction — RGB encoding:
+    Propagation-delay spatial spectrum plotted at arrival direction - RGB encoding:
       R = propagation delay (tau, 0-delay_max_ns ns, normalized to [0,1])
       G = path amplitude (reference channel)
       B = path amplitude (same as G — duplicated for visual balance)
@@ -484,7 +482,7 @@ def paths_to_response(paths, time_interval=0.1):
 
 def array_manifold_vector(M, theta_grid, phi_grid):
     """
-    Compute M×M UPA array manifold vector with tr38901 element pattern.
+    Compute MxM UPA array manifold vector with tr38901 element pattern.
     Returns: complex tensor of shape (M², H, W) for scanning over (theta, phi) grid.
     Element positions follow the tutorial's λ/2 spacing convention.
     """
@@ -569,7 +567,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
     cameras = {camera_id: Camera(camera_id, "PINHOLE", width, height, [fx, fy, cx, cy])}
     images = {}
     
-    # Add Receiver once and then update its position for every generated view.
     if 'rx' not in scene.receivers:
         scene.add(Receiver(name='rx', position=[0,0,0]))
     rx = scene.receivers['rx']
@@ -593,7 +590,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
                 rx.position = rx_locs[idx]
     
                 # Scat_keep_prob=0.5 for detailed MPC
-                # Using 2 depth to capture reflections
                 paths = scene.compute_paths(max_depth=2, reflection=True, diffraction=False, scattering=True,
                                             scat_keep_prob=0.5, num_samples=int(5e5))
     
@@ -662,7 +658,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
 
         # print(f"Normalization: spec={spec.shape}, norm_range=[{np.min(spec_norm):.3f}, {np.max(spec_norm):.3f}]")
 
-        # Prepare for projection (add channel dim for MPC)
         if spectrum_type == 'mpc':
             spec_input = spec_norm[..., None]
         else:
@@ -678,21 +673,16 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
             # Convert Equirectangular to Perspective (MPC stays scalar; AoD/Delay are RGB)
             persp_norm = equirectangular_to_perspective(spec_input, h_fov_deg, angle*180/np.pi, 90, height, width)
             
-            # Calculate score based on the number of features/paths rather than total energy.
-            # To avoid LOS dominating the score, count the area with valid signals.
+            # Calculating score based on the number of features/paths rather than total energy.
             proxy_channel = persp_norm[..., 2] if spectrum_type in ['phase', 'aod', 'delay'] else persp_norm
             
-            # The user wants both line-of-sight (bright pixels) and least dark patches (high coverage)
-            # Find the peak brightness (LOS check).
+            # Peak brightness (LOS check).
             peak_brightness = np.max(proxy_channel)
             
             # Dynamically determine the dark background level for this perspective
             background_level = np.min(proxy_channel)
-            # Count pixels that are noticeably brighter than the "dark patches" background
             coverage = np.count_nonzero(proxy_channel > (background_level + 0.05))
             
-            # The score effectively balances views that have intense peaks (LOS) 
-            # and a large spatial spread of multipaths (looking into the room center)
             score = peak_brightness * coverage
             
             if score > best_score:
@@ -701,7 +691,6 @@ def generate_ideal_dataset(scene, rx_locs, tx_loc, output_dir, spectrum_type='mp
                 best_persp_img = persp_norm
 
         if best_persp_img is not None:
-            # Quality check on the best image
             signal_peak = np.max(best_persp_img[..., 2]) if spectrum_type in ['phase', 'aod', 'delay'] else np.max(best_persp_img)
             if signal_peak < 0.1:
                 continue
@@ -778,26 +767,25 @@ if __name__ == "__main__":
     scene.synthetic_array = True 
     wavelength = 299792458 / scene.frequency
     
-    # TX: single iso element — ideal spectra don't beamform, they read paths directly from ray tracer
+    # TX: single iso element - ideal spectra don't beamform
     scene.tx_array = PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V",
                                 vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
 
     if args.ideal:
-        # RX: single iso element — ideal MPC/AoD/Delay reads paths directly, no beamforming
+        # RX: single iso element - ideal MPC/AoD/Delay
         scene.rx_array = PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V",
                                     vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
     else:  # --mvdr or --cbf
-        # RX: M×M tr38901 UPA — both CBF and MVDR use the array element pattern
+        # RX: M×M tr38901 UPA - both CBF and MVDR use the array element pattern
         M = args.mvdr_m
         scene.rx_array = PlanarArray(num_rows=M, num_cols=M, pattern="tr38901", polarization="V",
                                     vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
         method_name = 'MVDR' if args.mvdr else 'CBF'
         print(f"{method_name} mode: {M}x{M} tr38901 array ({M**2} elements) at {scene.frequency/1e9} GHz")
 
-    # Define Materials with Scattering (Required for Ideal MPC)
+    # Define Materials with Scattering
     global_scattering_coeff = 4
     
-    # Create materials but check if they exist (Sionna might load them from XML with generic names)
     # The snippet creates new RadioMaterials with scattering properties.
     
     # Conductivities at 28 GHz via ITU-R P.2040-2: σ(f_GHz) = c * f_GHz^d
@@ -827,7 +815,7 @@ if __name__ == "__main__":
     mat_metal = RadioMaterial("mat_metal_scat", relative_permittivity=1, conductivity=1e7,
                              scattering_coefficient=0.025*global_scattering_coeff, scattering_pattern=sionna.rt.DirectivePattern(alpha_r=10))
 
-    # Add materials safely
+    # Add materials
     for mat in [mat_concrete, mat_wood, mat_glass, mat_metal]:
         if mat.name not in scene.radio_materials:
             scene.add(mat)
@@ -895,7 +883,7 @@ if __name__ == "__main__":
         z_height = 1.2 # Device height
         rx_locs = [[x, y, z_height] for x in x_range for y in y_range]
     
-    tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position (ceiling center)
+    tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position
     
     phase_params = None
     if args.rg_scale is not None or args.b_lo_db is not None or args.b_hi_db is not None:
@@ -910,9 +898,3 @@ if __name__ == "__main__":
         out_dir = args.output_dir or ("localization_frames" if args.rx_pos else f"dataset_ideal_{args.spectrum_type}")
         generate_ideal_dataset(scene, rx_locs, tx_pos, out_dir, spectrum_type=args.spectrum_type, 
                                spec_min=args.spec_min, spec_max=args.spec_max, phase_norm_params=phase_params)
-    elif args.cbf:
-        out_dir = args.output_dir or f"dataset_cbf_M{args.mvdr_m}"
-        generate_mvdr_dataset(scene, rx_locs, tx_pos, out_dir, M=args.mvdr_m, method='cbf')
-    else:  # --mvdr
-        out_dir = args.output_dir or f"dataset_mvdr_M{args.mvdr_m}"
-        generate_mvdr_dataset(scene, rx_locs, tx_pos, out_dir, M=args.mvdr_m, method='mvdr')

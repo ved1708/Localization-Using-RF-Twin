@@ -30,7 +30,7 @@ def create_feature_vector(features):
     gains = features['path_gains']
     delays = features['path_delays']
     
-    # Take top 10 strongest paths
+    # Top 10 strongest paths
     n_paths = 10
     top_indices = np.argsort(gains)[::-1][:n_paths]
     
@@ -57,8 +57,8 @@ def create_feature_vector(features):
 def prepare_data(dataset, test_split=0.2):
     """    
     Args:
-        dataset: List of data points
-        test_split: Fraction of data to use for testing
+        dataset
+        test_split
     
     Returns:
         train_positions, train_features, test_positions, test_features
@@ -86,13 +86,13 @@ def prepare_data(dataset, test_split=0.2):
 def knn_localization(train_positions, train_features, test_features, k=5):
     """
     Args:
-        train_positions: Nx3 array of known positions
-        train_features: NxF array of RF features at those positions
-        test_features: MxF array of RF features to localize
+        train_positions
+        train_features
+        test_features
         k: Number of nearest neighbors
     
     Returns:
-        predicted_positions: Mx3 array of estimated positions
+        predicted_positions
     """
     # Find k nearest neighbors
     nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(train_features)

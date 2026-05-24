@@ -36,12 +36,23 @@ from pathlib import Path
 def run(cmd: list[str], cwd: str | None = None) -> tuple[str, str, int]:
     """Run a command, return (stdout, stderr, returncode)."""
     print(f"  $ {' '.join(str(c) for c in cmd)}", flush=True)
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-    if result.stdout:
-        print(result.stdout[-3000:], flush=True)
-    if result.stderr:
-        print(result.stderr[-500:], file=sys.stderr, flush=True)
-    return result.stdout, result.stderr, result.returncode
+    
+    # Use a temporary file for output to match evaluate_all.sh pattern 
+    # and avoid potential pipe buffering overhead
+    tmp_file = "gd_output.tmp"
+    with open(tmp_file, "w") as f:
+        result = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True, cwd=cwd)
+    
+    with open(tmp_file, "r") as f:
+        stdout = f.read()
+    
+    if os.path.exists(tmp_file):
+        os.remove(tmp_file)
+
+    if stdout:
+        print(stdout[-3000:], flush=True)
+        
+    return stdout, "", result.returncode
 
 
 def parse_estimated_position(stdout: str) -> tuple[float, float, float, float] | None:
@@ -81,7 +92,7 @@ def write_results(path: str, data: dict):
     os.replace(tmp, path)   # atomic swap so server always reads valid JSON
 
 
-# ── main ───────────────────────────────────────────────────────────────────
+# ── main ──
 
 def main():
     ap = argparse.ArgumentParser(description="Localisation pipeline orchestrator")
@@ -216,6 +227,7 @@ def main():
             "--iteration",    str(args.iteration),
             "--resolution_scale", "0.5"
         ]
+
         if results["pred_path"]:
             prev = results["pred_path"][-1]
             gd_cmd += [
@@ -237,7 +249,7 @@ def main():
             direct_err = float(m_err.group(1))
             results["log"].append(f"  ↳ Script-reported error: {direct_err:.6f} m")
 
-        # grab refinement time
+        # grab localisation time
         m_time = re.search(r"Total Localization Time: ([\d.]+) seconds", stdout_gd)
         if m_time:
             time_val = float(m_time.group(1))

@@ -119,26 +119,14 @@ def pose_to_matrix(position, yaw_rad):
     return R_w2c, T_w2c
 
 
-def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None, fast_mode=False):
+def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None):
     """
     Runs grid search logic
     Falls back to subprocess only if direct import fails.
     """
     print("\n" + "="*60)
     if coarse_x is not None:
-        if fast_mode:
-            print(f"STEP 1: [FAST MODE] Skipping grid search, using last known pose...")
-            # Return immediately with the provided coarse estimate
-            candidates = [((coarse_x, coarse_y, coarse_z), 0.0)]
-            print(f"\n" + "="*60)
-            print(f"STEP 2: USING PROVIDED COARSE ESTIMATE")
-            print("="*60)
-            for i, c in enumerate(candidates):
-                print(f"  Estimate: X={c[0][0]:.4f}m, Y={c[0][1]:.4f}m, Z={c[0][2]:.4f}m, Yaw={c[1]:.2f}°")
-            print("="*60)
-            return candidates
-        else:
-            print(f"STEP 1: Sub-Grid Search around ({coarse_x:.2f}, {coarse_y:.2f}, {coarse_z:.2f})...")
+        print(f"STEP 1: Sub-Grid Search around ({coarse_x:.2f}, {coarse_y:.2f}, {coarse_z:.2f})...")
     else:
         print("STEP 1: Grid Search for Coarse Pose Estimation...")
     print("="*60)
@@ -237,7 +225,7 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
 
     except Exception as e:
         print(f"[warn] In-process grid search failed ({e}), falling back to subprocess...")
-        return _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x, coarse_y, coarse_z, fast_mode=fast_mode)
+        return _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x, coarse_y, coarse_z)
 
     print("\n" + "="*60)
     print(f"STEP 2: ACQUIRED {len(candidates)} CANDIDATE POSES")
@@ -247,7 +235,7 @@ def run_grid_search(target_image, model_path, iteration, coarse_x=None, coarse_y
 
     return candidates
 
-def _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None, fast_mode=False):
+def _run_grid_search_subprocess(target_image, model_path, iteration, coarse_x=None, coarse_y=None, coarse_z=None):
     """
     Run grid_search_localization.py and parse the output to extract coarse pose.
     Returns: (position_tuple, yaw_deg)
@@ -371,10 +359,10 @@ def extract_gt_from_filename(filename):
 def iterative_optimization_refinement(gaussians, pipeline, background, target_image_tensor, 
                                  coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=100, 
                                  lambda_weight=0.6, fovx=0.8, fovy=0.8, width=600, height=600,
-                                 learning_rate=0.01, fast_mode=False, resolution_scale=1.0):
+                                 learning_rate=0.01, resolution_scale=1.0):
                                  
     print("\n" + "="*60)
-    print("STEP 4: Optimization Refinement" + (" [FAST MODE]" if fast_mode else ""))
+    print("STEP 4: Optimization Refinement")
     if resolution_scale < 1.0:
         print(f"(Running at {resolution_scale*100:.0f}% resolution for speed)")
     print("="*60 + "\n")
@@ -464,32 +452,25 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
     best_subgrid_pos = None
     best_subgrid_loss = float('inf')
     
-    # Evaluate 3x3x3 local micro-grid ONLY if not in fast mode
-    if fast_mode:
-        # Skip micro-grid search entirely, use coarse estimate directly
-        best_subgrid_pos = (x.item(), y.item(), z.item())
-        best_subgrid_loss = evaluate_loss_fw(x, y, z).item()
-        print(f"[FAST MODE] Skipping micro-grid search. Starting from coarse estimate: ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f})")
-    else:
-        # Micro-grid search
-        offsets = [-0.25, 0.0, 0.25]
-        for dx in offsets:
-            for dy in offsets:
-                for dz in offsets:
-                    tx, ty, tz = x.item() + dx, y.item() + dy, z.item() + dz
-                    # Create tensors for evaluation
-                    tx_t = torch.tensor(tx, dtype=torch.float32, device="cuda")
-                    ty_t = torch.tensor(ty, dtype=torch.float32, device="cuda")
-                    tz_t = torch.tensor(tz, dtype=torch.float32, device="cuda")
-                    
-                    loss_val = evaluate_loss_fw(tx_t, ty_t, tz_t).item()
-                    if loss_val < best_subgrid_loss:
-                        best_subgrid_loss = loss_val
-                        best_subgrid_pos = (tx, ty, tz)
+    # Micro-grid search
+    offsets = [-0.25, 0.0, 0.25]
+    for dx in offsets:
+        for dy in offsets:
+            for dz in offsets:
+                tx, ty, tz = x.item() + dx, y.item() + dy, z.item() + dz
+                # Create tensors for evaluation
+                tx_t = torch.tensor(tx, dtype=torch.float32, device="cuda")
+                ty_t = torch.tensor(ty, dtype=torch.float32, device="cuda")
+                tz_t = torch.tensor(tz, dtype=torch.float32, device="cuda")
+                
+                loss_val = evaluate_loss_fw(tx_t, ty_t, tz_t).item()
+                if loss_val < best_subgrid_loss:
+                    best_subgrid_loss = loss_val
+                    best_subgrid_pos = (tx, ty, tz)
 
-        print(f"Micro-grid search improved starting position from ({x.item():.3f}, {y.item():.3f}, {z.item():.3f}) "
-              f"to ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f}) "
-              f"with loss {best_subgrid_loss:.4f}")
+    print(f"Micro-grid search improved starting position from ({x.item():.3f}, {y.item():.3f}, {z.item():.3f}) "
+          f"to ({best_subgrid_pos[0]:.3f}, {best_subgrid_pos[1]:.3f}, {best_subgrid_pos[2]:.3f}) "
+          f"with loss {best_subgrid_loss:.4f}")
 
     # Set optimizable parameters to the newly found best local sub-grid position
     with torch.no_grad():
@@ -499,16 +480,10 @@ def iterative_optimization_refinement(gaussians, pipeline, background, target_im
 
     print(f"\n--- Full Rx Position Optimization (Fixed at Dir {final_target_yaw}°) ---")
     
-    if fast_mode:
-        num_iterations = min(num_iterations, 30)  # Drastically reduce iterations
-        eps = 2e-3  # Larger step for gradient approximation (fewer iterations needed)
-        patience = 2  # Aggressive early stopping
-        grad_skip = 2  # Skip gradient computation every N iterations - use previous gradient
-    else:
-        num_iterations = min(num_iterations, 100)
-        eps = 1e-3
-        patience = 5
-        grad_skip = 1  # Always compute gradient
+    num_iterations = min(num_iterations, 100)
+    eps = 1e-3
+    patience = 5
+    grad_skip = 1  # Always compute gradient
     
     pbar = tqdm(total=num_iterations, desc="Optimization")
     
@@ -586,7 +561,6 @@ def main():
     parser.add_argument("--coarse_y", type=float, default=None, help="Optional coarse Y position")
     parser.add_argument("--coarse_z", type=float, default=None, help="Optional coarse Z position")
     parser.add_argument("--coarse_yaw", type=float, default=0.0, help="Optional coarse Yaw (degrees)")
-    parser.add_argument("--fast_mode", action="store_true", help="Enable real-time optimization (skip micro-grid, fewer iterations)")
     parser.add_argument("--resolution_scale", type=float, default=1.0, help="Scale factor for rendering resolution (e.g., 0.5 for 50% resolution)")
     
 
@@ -605,10 +579,9 @@ def main():
     coarse_y = getattr(args, 'coarse_y', None)
     coarse_z = getattr(args, 'coarse_z', None)
     coarse_yaw = getattr(args, 'coarse_yaw', 0.0)
-    fast_mode = getattr(args, 'fast_mode', False)
 
     total_start_time = time.time()
-    coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration, coarse_x, coarse_y, coarse_z, fast_mode=fast_mode)
+    coarse_candidates = run_grid_search(args.target_image, args.model_path, args.iteration, coarse_x, coarse_y, coarse_z)
     
     print("\n" + "="*60)
     print("STEP 3: Loading RF-3DGS Scene and Model for Gradient Descent...")
@@ -654,7 +627,7 @@ def main():
         gaussians, pipeline, background, target_tensor,
         coarse_candidates, yaws_to_test=[0, 120, 240], num_iterations=args.num_iterations,
         lambda_weight=args.lambda_weight, fovx=fovx, fovy=fovy, width=width, height=height,
-        learning_rate=args.learning_rate, fast_mode=fast_mode, resolution_scale=args.resolution_scale
+        learning_rate=args.learning_rate, resolution_scale=args.resolution_scale
     )
     refinement_time = time.time() - start_time
     total_localization_time = time.time() - total_start_time

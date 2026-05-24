@@ -13,7 +13,7 @@ def generate_dataset():
     scene.synthetic_array = True
     wavelength = 299792458 / scene.frequency
 
-    # TX and RX single isotropic antennas
+    # TX and RX antennas
     scene.tx_array = PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V",
                                  vertical_spacing=0.5*wavelength, horizontal_spacing=0.5*wavelength)
     scene.rx_array = PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V",
@@ -66,7 +66,7 @@ def generate_dataset():
         rx.position = loc
         paths = scene.compute_paths(max_depth=3, num_samples=1e6)
         
-        # Features (gains and delays)
+        # Features
         a = paths.a.numpy()[0, 0, 0, 0, 0, :, 0] # amplitudes
         tau = paths.tau.numpy()[0, 0, 0, :] # delays
         
