@@ -8,8 +8,8 @@ project_dir = os.path.dirname(script_dir)
 rf3dgs_dir = os.path.join(project_dir, "RF-3DGS")
 sys.path.insert(0, rf3dgs_dir)
 
-from scene.gaussian_model import GaussianModel
-from arguments import OptimizationParams
+from scene.gaussian_model import GaussianModel  # type: ignore
+from arguments import OptimizationParams  # type: ignore
 
 def convert(args):
     print(f"Loading PLY from {args.ply}")

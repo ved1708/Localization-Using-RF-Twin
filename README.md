@@ -41,6 +41,11 @@ We comprehensively evaluate our localization approaches utilizing various RF sig
 
 Follow these documentation guides chronologically to successfully recreate the Digital Twin and evaluate localization performance from scratch.
 
+### 0. Installation 
+**[INSTALLATION.md](docs/INSTALLATION.md)**
+
+Sets up the environment, including RF-3DGS, NVIDIA Sionna, and Blender.
+
 ### 1. Scene Creation 
 **[SCENE_CREATION.md](docs/SCENE_CREATION.md)**
 
