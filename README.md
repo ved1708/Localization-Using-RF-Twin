@@ -1,15 +1,22 @@
 # RF Digital Twin Modeling and Localization for Indoor Wireless Systems
 
-This repository presents an end-to-end architecture for reconstructing **Radio-Frequency Radiance Fields (RRF)** from custom indoor 3D scenes using **Radio Frequency 3D Gaussian Splatting (RF-3DGS)** and leveraging this digital twin for continuous **indoor trajectory tracking and localization**.
+This repository presents an end-to-end architecture for reconstructing Radio-Frequency Radiance Fields (RRF) from custom indoor 3D scenes using **Radio Frequency 3D Gaussian Splatting [(RF-3DGS Paper)](https://ieeexplore.ieee.org/document/11355734)** and leveraging this digital twin for continuous **indoor trajectory tracking and localization**.
 
-By using neural volumetric representations (3DGS), we create digital twins for evaluating wireless characteristics (Path Gains, Delays, AoA/AoD) and performing accurate indoor localization.
+### Software Compatibility
+
+This project is built using:
+- **RF-3DGS**: Radio Frequency 3D Gaussian Splatting framework.
+- **NVIDIA Sionna**: GPU-accelerated ray tracing for RF simulations [Sionna documentation](https://nvlabs.github.io/sionna/index.html).
+- **Blender (3.6+)**: For visual scene and dataset generation.
 
 ---
+
+By using neural volumetric representations (3DGS), we create digital twins for evaluating wireless characteristics (Path Gains, Delays, AoA/AoD) and performing accurate indoor localization.
 
 ## 📍 Localization Demo & Results
 
 Our approach enables robust, continuous tracking of users in indoor environments by matching real-time RF measurements against the 3DGS reconstructed radio environment.
-
+### Check [RF Digital Twin Model](https://ved1708.github.io/Localization-Using-RF-Twin/DEMO/rfdt_model_demo/)
 ### Trajectory Tracking 
 > *Tracking Demo*
 > ![Trajectory Tracking](DEMO/assets/demo.gif)
@@ -145,5 +152,5 @@ python demo_server.py
 
 ## 👤 Author & Acknowledgments
 - **Project & Repository**: [ved1708/Localization-Using-RF-Twin](https://github.com/ved1708/Localization-Using-RF-Twin)
-- **Core Frameworks & Tools**: Adapted around [RF-3DGS](https://github.com/SunLab-UGA/RF-3DGS), [NVIDIA Sionna](https://nvlabs.github.io/sionna/), [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) & Blender.
+- **Core Frameworks & Tools**: Adapted around [RF-3DGS](https://ieeexplore.ieee.org/document/11355734), [NVIDIA Sionna](https://nvlabs.github.io/sionna/), [3D Gaussian Splatting](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) & Blender.
 
