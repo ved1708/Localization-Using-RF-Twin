@@ -63,6 +63,9 @@ Thumbs.db
 *.bak
 *~
 
+# XML files
+*.xml
+
 # RF-3DGS submodule (if not tracking it)
 RF-3DGS/.git/
 
