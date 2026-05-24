@@ -100,7 +100,7 @@ python train.py \
 | `-m, --model_path` | `output/rf_model` | Output directory |
 | `--images` | `spectrum` | Subfolder with RF heatmaps |
 | `--start_checkpoint` | `output/visual_model/chkpnt30000.pth` | Visual checkpoint |
-| `--iterations` | `10000` | Fewer iterations (geometry already learned) |
+| `--iterations` | `40000` | Fewer iterations (starting from iteration 30000) |
 
 ### Fine-tuning Process
 
@@ -132,7 +132,7 @@ output/rf_model/├── cameras.json├── cfg_args├── point_cloud/�
 
 ## Troubleshooting
 
-### Issue 1: Poor Test PSNR (<25 dB)
+### Issue 1: Poor Test PSNR
 
 **Symptom**: Visual model achieves low PSNR on test set
 
@@ -154,6 +154,5 @@ After training:
 
 **See also**:
 
--   [Main README](../README.md) - Complete pipeline
--   [Evaluation Guide](EVALUATION.md) - Quality assessment
--   [Visualization Guide](VISUALIZATION.md) - Interactive viewer
+-   [Main README](../README.md)
+-   [Evaluation Guide](EVALUATION.md)

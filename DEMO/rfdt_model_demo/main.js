@@ -735,7 +735,7 @@ let defaultViewMatrix = [
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
-    -1, -1, -2, 1,
+    -2.6, -2.4, -1.5, 1,
 ];
 let viewMatrix = defaultViewMatrix;
 async function main() {
