@@ -1,6 +1,6 @@
 # RF Digital Twin Modeling and Localization for Indoor Wireless Systems
 
-This repository presents an end-to-end architecture for reconstructing Radio-Frequency Radiance Fields (RRF) from custom indoor 3D scenes using **Radio Frequency 3D Gaussian Splatting [(RF-3DGS Paper)](https://ieeexplore.ieee.org/document/11355734)** and leveraging this digital twin for continuous **indoor trajectory tracking and localization**.
+This repository presents complete architecture for reconstructing Radio-Frequency Digital Twin from custom indoor 3D scenes using **Radio Frequency 3D Gaussian Splatting [(RF-3DGS Paper)](https://ieeexplore.ieee.org/document/11355734)** and leveraging this digital twin for continuous **indoor trajectory tracking and localization**.
 
 ### Software Compatibility
 
@@ -11,11 +11,11 @@ This project is built using:
 
 ---
 
-By using neural volumetric representations (3DGS), we create digital twins for evaluating wireless characteristics (Path Gains, Delays, AoA/AoD) and performing accurate indoor localization.
+By using neural volumetric representations (3DGS), RF Digital Twin is constructed for evaluating wireless characteristics and performing accurate indoor localization.
 
 ## 📍 Localization Demo & Results
 
-Our approach enables robust, continuous tracking of users in indoor environments by matching real-time RF measurements against the 3DGS reconstructed radio environment.
+This approach enables robust, continuous tracking of users in indoor environments by matching real-time RF measurements against the 3DGS reconstructed radio environment.
 ### Check [RF Digital Twin Model](https://ved1708.github.io/Localization-Using-RF-Twin/DEMO/rfdt_model_demo/)
 ### Trajectory Tracking 
 > *Tracking Demo*
@@ -27,9 +27,9 @@ This tracking is facilitated through iterative optimization algorithms built dir
 
 ## 📊 Localization Metrics
 
-We comprehensively evaluate our localization approaches utilizing various RF signatures (Delay, MPC) and compare traditional optimization against deep learning models:
+The localization is comprehensively evaluated for Delay RF signatures and compared with traditional optimization against deep learning models:
 
-- **Average Localization Error**: Achieves sub-meter accuracy (~0.5m average error), pushing boundaries in multi-path rich environments.
+- **Average Localization Error**: Achieves sub-decimeter accuracy (~0.1m average error), pushing boundaries in multi-path rich environments.
 - **Optimization Methods**: Includes zero-shot optimization evaluations utilizing Grid Search (`grid_search_localization.py`) and Gradient Descent (`gradient_descent_localization.py`).
 
 *Table: Localization accuracy across all test locations. All values are in metres.*
