@@ -1,4 +1,4 @@
-# RF Digital Twin Modeling and Localization for Indoor Wireless Systems [Github](https://github.com/ved1708/Localization-Using-RF-Twin/blob/main/README.md)
+# RF Digital Twin Modeling and Localization for Indoor Wireless Systems [Github](https://github.com/ved1708/Localization-Using-RF-Twin)
 
 This repository presents complete architecture for reconstructing Radio-Frequency Digital Twin from custom indoor 3D scenes using **Radio Frequency 3D Gaussian Splatting [(RF-3DGS Paper)](https://ieeexplore.ieee.org/document/11355734)** and leveraging this digital twin for continuous **indoor trajectory tracking and localization**.
 
