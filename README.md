@@ -16,7 +16,7 @@ By using neural volumetric representations (3DGS), RF Digital Twin is constructe
 ## 📍 Localization Demo & Results
 
 This approach enables robust, continuous tracking of users in indoor environments by matching real-time RF measurements against the 3DGS reconstructed radio environment.
-### Check [RF Digital Twin Model](https://ved1708.github.io/Localization-Using-RF-Twin/DEMO/rfdt_model_demo/)
+### Demo of [RF Digital Twin Model](https://ved1708.github.io/Localization-Using-RF-Twin/DEMO/rfdt_model_demo/)
 ### Trajectory Tracking 
 > *Tracking Demo*
 > ![Trajectory Tracking](DEMO/assets/demo.gif)
