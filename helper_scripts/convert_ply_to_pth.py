@@ -8,16 +8,16 @@ project_dir = os.path.dirname(script_dir)
 rf3dgs_dir = os.path.join(project_dir, "RF-3DGS")
 sys.path.insert(0, rf3dgs_dir)
 
-from scene.gaussian_model import GaussianModel  # type: ignore
-from arguments import OptimizationParams  # type: ignore
+from scene.gaussian_model import GaussianModel
+from arguments import OptimizationParams
 
 def convert(args):
     print(f"Loading PLY from {args.ply}")
     
-    # 1. Initialize Gaussian Model
+    # Initialize Gaussian Model
     gaussians = GaussianModel(sh_degree=3)
     
-    # 2. Setup dummy training parameters to initialize optimizer (needed for capture)
+    # Setup dummy training parameters to initialize optimizer (needed for capture)
     parser = ArgumentParser()
     opt_params = OptimizationParams(parser)
     # Extract defaults
@@ -26,14 +26,14 @@ def convert(args):
     # Setup training
     gaussians.training_setup(opt)
     
-    # 3. Load the PLY data into the model
+    # Load the PLY data into the model
     gaussians.load_ply(args.ply)
     
-    # 4. Capture state
+    # Capture state
     iteration = 30000
     save_tuple = (gaussians.capture(), iteration)
     
-    # 5. Save .pth
+    # Save .pth
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     torch.save(save_tuple, args.out)
     print(f"Saved checkpoint to {args.out}")

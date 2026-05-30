@@ -35,7 +35,7 @@ for img in "$TARGET_DIR"/*.png; do
         # Print progress to stderr
         echo "Evaluating $filename..." >&2
         
-        # Run the python script and capture its output
+        # Runs the python script and capture its output
         python gradient_descent_localization.py \
             --target_image "$img" \
             --model_path "$MODEL_PATH" \

@@ -24,7 +24,6 @@ def create_feature_vector(features):
     path_gains = features['path_gains']
     path_delays = features['path_delays']
 
-    # Use log-power from gains
     power = 10 * np.log10(path_gains**2 + 1e-12)
     delays = path_delays.real
 

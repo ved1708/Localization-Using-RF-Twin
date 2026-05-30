@@ -237,9 +237,7 @@ def evaluate(target_image_path, rendered_folder, poses_info, fast_ssim_only=Fals
     return results
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # MAIN
-# ──────────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser()

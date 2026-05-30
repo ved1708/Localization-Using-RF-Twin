@@ -843,7 +843,7 @@ if __name__ == "__main__":
         os.makedirs(out_dir, exist_ok=True)
         print("READY", flush=True)
         import sys
-        tx_pos = [0.01, 2.5, 2.9]  # Fixed TX position (ceiling center)
+        tx_pos = [0.01, 2.5, 2.9]  #
         phase_params = None
         if args.rg_scale is not None or args.b_lo_db is not None or args.b_hi_db is not None:
             phase_params = {

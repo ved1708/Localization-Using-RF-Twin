@@ -4,7 +4,6 @@ import numpy as np
 import os
 
 def optimize_and_convert(las_path, ply_path, voxel_size=0.05):
-    # Check if input file exists
     if not os.path.exists(las_path):
         print(f"Error: The file '{las_path}' was not found.")
         return
@@ -68,7 +67,6 @@ if __name__ == "__main__":
     
     # Controls detail level. 
     # 0.05 = 5cm spacing (Good balance for buildings/garages in Meters)
-    # Increase to 0.1 or 0.2 if the file is still too slow in the browser.
     VOXEL_SIZE = 0.05 
     # ---------------------
 

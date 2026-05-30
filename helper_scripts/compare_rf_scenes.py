@@ -5,9 +5,6 @@ Compare RF Heatmaps: Static vs Dynamic Scene
 This script compares RF propagation patterns between:
 - Static scene (without metallic cube)
 - Dynamic scene (with metallic cube)
-
-The difference highlights where the metallic obstacle affects RF propagation,
-enabling localization of the dynamic object.
 """
 
 import os
@@ -166,7 +163,7 @@ def visualize_comparison(static_rf, dynamic_rf, diff_map, signed_diff,
 
 def find_change_centroid(diff_map, threshold=0.1):
     """
-    Find the centroid of significant changes.
+    Finds the centroid of significant changes.
     
     Args:
         diff_map

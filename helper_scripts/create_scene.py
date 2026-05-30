@@ -348,7 +348,6 @@ def create_scene_meshes(output_dir):
     sofa_leg_height = 0.08           # legs are 8 cm tall
     seat_bottom_z = sofa_seat_height - sofa_seat_thickness   # = 0.20 m
 
-    # ------------------------------------------------------------------
     # Sofa 1 - South side (lower y), facing north
     # ------------------------------------------------------------------
     sofa1_y_back  = ct_y[0] - 0.4
@@ -376,7 +375,6 @@ def create_scene_meshes(output_dir):
                                    leg_height=sofa_leg_height)
     print("✓ Sofa 1 (south side) — with base")
 
-    # ------------------------------------------------------------------
     # Sofa 2 - North side, facing south
     # ------------------------------------------------------------------
     sofa2_y_front = ct_y[1] + 0.4

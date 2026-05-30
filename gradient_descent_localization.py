@@ -32,7 +32,7 @@ def _get_grid_search_module():
         _gs_mod = gsm
     return _gs_mod
 
-# ADD module-level LPIPS cache
+# Module-level LPIPS cache
 _lpips_cache = None
 # keyed by (model_path, iteration)
 _gaussians_cache = {}
@@ -570,7 +570,6 @@ def main():
     parser.add_argument("--iteration", type=int, default=40000)
     
     args = get_combined_args(parser)
-    # safe_state(silent=True) # removed to prevent timestamp hijacking of stdout
     
     if not os.path.exists(args.target_image):
         raise FileNotFoundError(f"Target image not found: {args.target_image}")
