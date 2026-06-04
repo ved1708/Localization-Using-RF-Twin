@@ -10,7 +10,7 @@ import argparse
 import time
 
 # ================= CONFIGURATION =================
-BASE_DIR = "/home/ved/Ved/Project_1"
+BASE_DIR = os.path.dirname(os.path.abspath(_file_))
 
 if '--' in sys.argv:
     script_args = sys.argv[sys.argv.index('--') + 1:]
@@ -850,6 +850,12 @@ def render_frame(index, cam, images_dir, frames_list, strategy="unknown"):
     # Check if frame already exists
     if os.path.exists(filepath):
         print(f"  Skipping existing frame {index:04d}")
+        matrix = cam.matrix_world
+        frames_list.append({
+            "file_path": f"images/frame_{index:04d}",
+            "transform_matrix": [list(row) for row in matrix],
+            "strategy": strategy
+        })
         return
 
     # Render the frame
